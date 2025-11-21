@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
@@ -21,6 +20,7 @@ import { StatsCard } from './StatsCard';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { DashboardCharts } from './DashboardCharts';
 import { getTransactionsByMonth } from '../data/mockData';
+import { exportToExcel } from '../services/excelService';
 
 export const Dashboard: React.FC = () => {
   // Initialize to November 2025 as requested
@@ -124,6 +124,17 @@ export const Dashboard: React.FC = () => {
     setCurrentDate(date);
     setIsMonthPickerOpen(false);
   };
+  
+  const handleExportExcel = () => {
+    if (transactions.length === 0) {
+      alert("Không có dữ liệu để xuất!");
+      return;
+    }
+    const monthLabel = `${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+    // Export filtered transactions if search is active, otherwise all transactions
+    const dataToExport = searchTerm ? filteredTransactions : transactions;
+    exportToExcel(dataToExport, monthLabel);
+  };
 
   // Generate last 12 months for dropdown, anchored at Nov 2025
   const last12Months = useMemo(() => {
@@ -143,7 +154,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex">
       {/* Sidebar (Simplified for visual context) */}
-      <aside className="hidden md:flex w-16 flex-col items-center py-4 border-r bg-white space-y-4 fixed h-full z-10">
+      <aside className="hidden md:flex w-16 flex-col items-center py-4 border-r bg-white space-y-4 fixed h-full z-10 left-0 top-0">
         <div className="p-2 bg-slate-900 rounded-lg text-white">
           <LayoutDashboard size={20} />
         </div>
@@ -156,217 +167,224 @@ export const Dashboard: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-16 p-4 md:p-8 max-w-[1600px] mx-auto w-full">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-             <Button variant="outline" size="sm" className="w-8 h-8 p-0">
-                <ChevronLeft size={16} />
-             </Button>
-             <h1 className="text-xl font-semibold">Báo cáo thu chi xe 25F-002.19</h1>
-          </div>
-          <div className="flex space-x-2 items-center">
-             <Button variant="outline" size="sm" icon={<Download size={14}/>}>Xuất Excel</Button>
-             
-             <div className="flex items-center bg-white border rounded-md shadow-sm relative">
-               <button 
-                  onClick={() => changeMonth(-1)}
-                  className="p-2 hover:bg-slate-100 border-r"
-                  title="Tháng trước"
+      <main className="flex-1 md:ml-16 w-full">
+        <div className="max-w-[1600px] mx-auto p-4 md:p-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+               <Button variant="outline" size="sm" className="w-8 h-8 p-0">
+                  <ChevronLeft size={16} />
+               </Button>
+               <h1 className="text-xl font-semibold">Báo cáo thu chi xe 25F-002.19</h1>
+            </div>
+            <div className="flex space-x-2 items-center">
+               <Button 
+                  variant="outline" 
+                  size="sm" 
+                  icon={<Download size={14}/>}
+                  onClick={handleExportExcel}
                >
-                 <ChevronLeft size={14} />
-               </button>
+                  Xuất Excel
+               </Button>
                
-               <div className="relative">
+               <div className="flex items-center bg-white border rounded-md shadow-sm relative">
                  <button 
-                    onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
-                    className="px-3 py-1 text-sm font-medium min-w-[110px] text-center flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                    onClick={() => changeMonth(-1)}
+                    className="p-2 hover:bg-slate-100 border-r"
+                    title="Tháng trước"
                  >
-                    <Calendar size={14}/>
-                    {`T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
-                    <ChevronDown size={12} className={`transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`}/>
+                   <ChevronLeft size={14} />
                  </button>
                  
-                 {/* Calendar-like Month Picker */}
-                 {isMonthPickerOpen && (
-                   <>
-                    <div 
-                      className="fixed inset-0 z-20" 
-                      onClick={() => setIsMonthPickerOpen(false)}
-                    />
-                    <div className="absolute top-full mt-1 right-0 w-[320px] bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-200">
-                      <div className="text-sm font-semibold text-slate-500 mb-3 px-1">
-                        Chọn tháng báo cáo
+                 <div className="relative">
+                   <button 
+                      onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
+                      className="px-3 py-1 text-sm font-medium min-w-[110px] text-center flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                   >
+                      <Calendar size={14}/>
+                      {`T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
+                      <ChevronDown size={12} className={`transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`}/>
+                   </button>
+                   
+                   {/* Calendar-like Month Picker */}
+                   {isMonthPickerOpen && (
+                     <>
+                      <div 
+                        className="fixed inset-0 z-20" 
+                        onClick={() => setIsMonthPickerOpen(false)}
+                      />
+                      <div className="absolute top-full mt-1 right-0 w-[320px] bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="text-sm font-semibold text-slate-500 mb-3 px-1">
+                          Chọn tháng báo cáo
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {last12Months.map((date, idx) => {
+                            const isSelected = date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => selectMonth(date)}
+                                className={`
+                                  flex flex-col items-center justify-center py-3 rounded-md text-sm transition-all
+                                  ${isSelected 
+                                    ? 'bg-slate-900 text-white shadow-md' 
+                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                                  }
+                                `}
+                              >
+                                <span className="font-bold">Tháng {date.getMonth() + 1}</span>
+                                <span className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{date.getFullYear()}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {last12Months.map((date, idx) => {
-                          const isSelected = date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
-                          return (
-                            <button
-                              key={idx}
-                              onClick={() => selectMonth(date)}
-                              className={`
-                                flex flex-col items-center justify-center py-3 rounded-md text-sm transition-all
-                                ${isSelected 
-                                  ? 'bg-slate-900 text-white shadow-md' 
-                                  : 'bg-slate-50 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                                }
-                              `}
-                            >
-                              <span className="font-bold">Tháng {date.getMonth() + 1}</span>
-                              <span className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{date.getFullYear()}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                   </>
-                 )}
+                     </>
+                   )}
+                 </div>
+
+                 <button 
+                    onClick={() => changeMonth(1)}
+                    className="p-2 hover:bg-slate-100 border-l"
+                    title="Tháng sau"
+                 >
+                   <ChevronRight size={14} />
+                 </button>
                </div>
-
-               <button 
-                  onClick={() => changeMonth(1)}
-                  className="p-2 hover:bg-slate-100 border-l"
-                  title="Tháng sau"
-               >
-                 <ChevronRight size={14} />
-               </button>
-             </div>
+            </div>
           </div>
-        </div>
 
-        {/* Stats Cards - Uses FULL stats regardless of search */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <StatsCard 
-            title="Tổng dư" 
-            value={stats.totalRemaining} 
-            diff={diffTotal} 
-          />
-          <StatsCard 
-            title="Dư sau chia" 
-            value={stats.splitByFour} 
-            diff={diffSplit} 
-          />
-        </div>
-
-        {/* Action Bar */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm ghi chú hoặc ngày..." 
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); }}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-9"
+          {/* Stats Cards - Uses FULL stats regardless of search */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <StatsCard 
+              title="Tổng dư" 
+              value={stats.totalRemaining} 
+              diff={diffTotal} 
+            />
+            <StatsCard 
+              title="Dư sau chia" 
+              value={stats.splitByFour} 
+              diff={diffSplit} 
             />
           </div>
-          
-          <div className="flex items-center space-x-2 w-full md:w-auto">
-             <Button variant="outline" icon={<Plus size={16}/>}>
-                Thêm sổ thu chi
-             </Button>
-             <Button variant="primary" icon={<CreditCard size={16}/>}>
-                Tạo thanh toán
-             </Button>
-          </div>
-        </div>
 
-        {/* Table - Uses FILTERED transactions */}
-        <div className="rounded-md border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-100 text-slate-600 font-medium border-b">
-                <tr>
-                  <th className="h-12 px-4 align-middle w-[60px] text-center text-xs font-semibold" title="Tích chọn nếu đi 2 xe">
-                     2 Xe
-                  </th>
-                  <th className="h-12 px-4 align-middle">Ngày</th>
-                  <th className="h-12 px-4 align-middle text-right">Tổng thu</th>
-                  <th className="h-12 px-4 align-middle text-right">Chi chung</th>
-                  <th className="h-12 px-4 align-middle text-right font-bold">Tổng dư</th>
-                  <th className="h-12 px-4 align-middle text-right font-bold">Dư chia</th>
-                  <th className="h-12 px-4 align-middle text-right">Chi riêng</th>
-                  <th className="h-12 px-4 align-middle text-right font-bold">Dư còn lại</th>
-                  <th className="h-12 px-4 align-middle text-center"></th>
-                  <th className="h-12 px-4 align-middle w-[300px]">Ghi chú</th>
-                  <th className="h-12 px-4 align-middle text-right">Trạng thái</th>
-                  <th className="h-12 px-4 align-middle w-[50px]"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {isLoading ? (
+          {/* Action Bar */}
+          <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm ghi chú hoặc ngày..." 
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); }}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-9"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2 w-full md:w-auto">
+               <Button variant="outline" icon={<Plus size={16}/>}>
+                  Thêm sổ thu chi
+               </Button>
+               <Button variant="primary" icon={<CreditCard size={16}/>}>
+                  Tạo thanh toán
+               </Button>
+            </div>
+          </div>
+
+          {/* Table - Uses FILTERED transactions */}
+          <div className="rounded-md border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-100 text-slate-600 font-medium border-b">
                   <tr>
-                    <td colSpan={12} className="p-4 text-center text-muted-foreground">Đang tải dữ liệu...</td>
+                    <th className="h-12 px-4 align-middle w-[60px] text-center text-xs font-semibold" title="Tích chọn nếu đi 2 xe">
+                       2 Xe
+                    </th>
+                    <th className="h-12 px-4 align-middle">Ngày</th>
+                    <th className="h-12 px-4 align-middle text-right">Tổng thu</th>
+                    <th className="h-12 px-4 align-middle text-right">Chi chung</th>
+                    <th className="h-12 px-4 align-middle text-right font-bold">Tổng dư</th>
+                    <th className="h-12 px-4 align-middle text-right font-bold">Dư chia</th>
+                    <th className="h-12 px-4 align-middle text-right">Chi riêng</th>
+                    <th className="h-12 px-4 align-middle text-right font-bold">Dư còn lại</th>
+                    <th className="h-12 px-4 align-middle text-center"></th>
+                    <th className="h-12 px-4 align-middle w-[300px]">Ghi chú</th>
+                    <th className="h-12 px-4 align-middle text-right">Trạng thái</th>
+                    <th className="h-12 px-4 align-middle w-[50px]"></th>
                   </tr>
-                ) : filteredTransactions.length === 0 ? (
-                  <tr>
-                     <td colSpan={12} className="p-8 text-center text-muted-foreground">
-                        Không tìm thấy dữ liệu phù hợp với "{searchTerm}" trong tháng {currentDate.getMonth() + 1}
-                     </td>
-                  </tr>
-                ) : filteredTransactions.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="p-4 align-middle text-center">
-                       <input 
-                        type="checkbox" 
-                        checked={t.isShared} 
-                        disabled
-                        className="w-4 h-4 rounded border-gray-300 text-slate-900 accent-slate-900 focus:ring-slate-900 cursor-not-allowed disabled:opacity-100" 
-                        title={t.isShared ? "Đi 2 xe" : "Đi 1 xe (Dư chia / 2)"}
-                      />
-                    </td>
-                    <td className="p-4 align-middle font-medium">{t.date}</td>
-                    <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
-                    <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
-                    <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
-                    <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
-                    <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
-                    <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
-                    <td className="p-4 align-middle text-center">
-                      <button 
-                        onClick={() => handleOpenDetail(t)}
-                        className="text-xs font-medium cursor-pointer hover:underline text-blue-600"
-                      >
-                        Chi tiết
-                      </button>
-                    </td>
-                    <td className="p-4 align-middle text-slate-600 truncate max-w-[300px]" title={t.note}>
-                      {t.note}
-                    </td>
-                    <td className="p-4 align-middle text-right">
-                      <Badge status={t.status} />
-                    </td>
-                    <td className="p-4 align-middle text-right">
-                       <button className="text-slate-400 hover:text-slate-600">
-                          <MoreVertical size={16} />
-                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={12} className="p-4 text-center text-muted-foreground">Đang tải dữ liệu...</td>
+                    </tr>
+                  ) : filteredTransactions.length === 0 ? (
+                    <tr>
+                       <td colSpan={12} className="p-8 text-center text-muted-foreground">
+                          Không tìm thấy dữ liệu phù hợp với "{searchTerm}" trong tháng {currentDate.getMonth() + 1}
+                       </td>
+                    </tr>
+                  ) : filteredTransactions.map((t) => (
+                    <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="p-4 align-middle text-center">
+                         <input 
+                          type="checkbox" 
+                          checked={t.isShared} 
+                          disabled
+                          className="w-4 h-4 rounded border-gray-300 text-slate-900 accent-slate-900 focus:ring-slate-900 cursor-not-allowed disabled:opacity-100" 
+                          title={t.isShared ? "Đi 2 xe" : "Đi 1 xe (Dư chia / 2)"}
+                        />
+                      </td>
+                      <td className="p-4 align-middle font-medium">{t.date}</td>
+                      <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
+                      <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
+                      <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
+                      <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
+                      <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
+                      <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
+                      <td className="p-4 align-middle text-center">
+                        <button 
+                          onClick={() => handleOpenDetail(t)}
+                          className="text-xs font-medium cursor-pointer hover:underline text-blue-600"
+                        >
+                          Chi tiết
+                        </button>
+                      </td>
+                      <td className="p-4 align-middle text-slate-600 truncate max-w-[300px]" title={t.note}>
+                        {t.note}
+                      </td>
+                      <td className="p-4 align-middle text-right">
+                        <Badge status={t.status} />
+                      </td>
+                      <td className="p-4 align-middle text-right">
+                         <button className="text-slate-400 hover:text-slate-600">
+                            <MoreVertical size={16} />
+                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="border-t p-4 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+               <span className="font-medium italic">
+                 * Đơn vị tính: Nghìn đồng (Ví dụ: 13.400 = 13.400.000đ)
+               </span>
+               <span>
+                 Hiển thị: {filteredTransactions.length} / {transactions.length} bản ghi
+               </span>
+            </div>
           </div>
-          
-          <div className="border-t p-4 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-             <span className="font-medium italic">
-               * Đơn vị tính: Nghìn đồng (Ví dụ: 13.400 = 13.400.000đ)
-             </span>
-             <span>
-               Hiển thị: {filteredTransactions.length} / {transactions.length} bản ghi
-             </span>
-          </div>
+
+          {/* Charts Section - Pass FULL transactions so charts remain static during search */}
+          {!isLoading && transactions.length > 0 && (
+            <DashboardCharts 
+              transactions={transactions} 
+              prevTransactions={prevTransactions}
+            />
+          )}
         </div>
-
-        {/* Charts Section - Pass FULL transactions so charts remain static during search */}
-        {!isLoading && transactions.length > 0 && (
-          <DashboardCharts 
-            transactions={transactions} 
-            prevTransactions={prevTransactions}
-          />
-        )}
-
       </main>
       
       {/* Detail Modal */}
