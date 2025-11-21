@@ -156,13 +156,13 @@ export const Dashboard: React.FC = () => {
       {/* Sidebar (Simplified for visual context) */}
       <aside className="hidden md:flex w-16 flex-col items-center py-4 border-r bg-white space-y-4 fixed h-full z-10 left-0 top-0">
         <div className="p-2 bg-slate-900 rounded-lg text-white">
-          <LayoutDashboard size={24} />
+          <LayoutDashboard size={20} />
         </div>
         <div className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg cursor-pointer">
-          <FileText size={24} />
+          <FileText size={20} />
         </div>
         <div className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg cursor-pointer">
-          <Settings size={24} />
+          <Settings size={20} />
         </div>
       </aside>
 
@@ -173,16 +173,16 @@ export const Dashboard: React.FC = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-3">
-               <Button variant="outline" size="sm" className="w-9 h-9 p-0">
-                  <ChevronLeft size={20} />
+               <Button variant="outline" size="sm" className="w-8 h-8 p-0">
+                  <ChevronLeft size={16} />
                </Button>
-               <h1 className="text-2xl font-semibold">Báo cáo thu chi xe 25F-002.19</h1>
+               <h1 className="text-xl font-semibold">Báo cáo thu chi xe 25F-002.19</h1>
             </div>
             <div className="flex space-x-2 items-center">
                <Button 
                   variant="outline" 
-                  size="sm" 
-                  icon={<Download size={16}/>}
+                  size="md" 
+                  icon={<Download size={14}/>}
                   onClick={handleExportExcel}
                >
                   Xuất Excel
@@ -194,15 +194,15 @@ export const Dashboard: React.FC = () => {
                     className="p-2.5 hover:bg-slate-100 border-r"
                     title="Tháng trước"
                  >
-                   <ChevronLeft size={16} />
+                   <ChevronLeft size={14} />
                  </button>
                  
                  <div className="relative">
                    <button 
                       onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
-                      className="px-4 py-2 text-base font-medium min-w-[130px] text-center flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                      className="px-4 py-2 text-sm font-medium min-w-[130px] text-center flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
                    >
-                      <Calendar size={16}/>
+                      <Calendar size={14}/>
                       {`T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
                       <ChevronDown size={14} className={`transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`}/>
                    </button>
@@ -214,11 +214,11 @@ export const Dashboard: React.FC = () => {
                         className="fixed inset-0 z-20" 
                         onClick={() => setIsMonthPickerOpen(false)}
                       />
-                      <div className="absolute top-full mt-1 right-0 w-[340px] bg-white rounded-lg shadow-xl border border-slate-200 p-5 z-30 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="text-base font-semibold text-slate-500 mb-4 px-1">
+                      <div className="absolute top-full mt-1 right-0 w-[300px] bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="text-sm font-semibold text-slate-500 mb-3 px-1">
                           Chọn tháng báo cáo
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-3 gap-2">
                           {last12Months.map((date, idx) => {
                             const isSelected = date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
                             return (
@@ -226,15 +226,15 @@ export const Dashboard: React.FC = () => {
                                 key={idx}
                                 onClick={() => selectMonth(date)}
                                 className={`
-                                  flex flex-col items-center justify-center py-3 rounded-md text-sm transition-all
+                                  flex flex-col items-center justify-center py-2 rounded-md text-xs transition-all
                                   ${isSelected 
                                     ? 'bg-slate-900 text-white shadow-md' 
                                     : 'bg-slate-50 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
                                   }
                                 `}
                               >
-                                <span className="font-bold text-base">Tháng {date.getMonth() + 1}</span>
-                                <span className={`text-xs ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{date.getFullYear()}</span>
+                                <span className="font-bold text-sm">Tháng {date.getMonth() + 1}</span>
+                                <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{date.getFullYear()}</span>
                               </button>
                             );
                           })}
@@ -249,7 +249,7 @@ export const Dashboard: React.FC = () => {
                     className="p-2.5 hover:bg-slate-100 border-l"
                     title="Tháng sau"
                  >
-                   <ChevronRight size={16} />
+                   <ChevronRight size={14} />
                  </button>
                </div>
             </div>
@@ -272,21 +272,21 @@ export const Dashboard: React.FC = () => {
           {/* Action Bar */}
           <div className="flex flex-col md:flex-row justify-between items-center mb-5 gap-4">
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Tìm kiếm ghi chú hoặc ngày..." 
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); }}
-                className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-10"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-9"
               />
             </div>
             
             <div className="flex items-center space-x-3 w-full md:w-auto">
-               <Button variant="outline" icon={<Plus size={18}/>}>
+               <Button variant="outline" size="md" icon={<Plus size={16}/>}>
                   Thêm sổ thu chi
                </Button>
-               <Button variant="primary" icon={<CreditCard size={18}/>}>
+               <Button variant="primary" size="md" icon={<CreditCard size={16}/>}>
                   Tạo thanh toán
                </Button>
             </div>
@@ -295,24 +295,24 @@ export const Dashboard: React.FC = () => {
           {/* Table - Uses FILTERED transactions */}
           <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
             <div className="overflow-x-auto flex-1">
-              {/* Increased text size to text-base */}
-              <table className="w-full text-base text-left">
+              {/* Reverted text size to text-sm */}
+              <table className="w-full text-sm text-left">
                 <thead className="bg-slate-100 text-slate-700 font-semibold border-b">
                   <tr>
-                    <th className="h-14 px-4 align-middle w-[70px] text-center text-sm" title="Tích chọn nếu đi 2 xe">
+                    <th className="h-12 px-4 align-middle w-[60px] text-center" title="Tích chọn nếu đi 2 xe">
                        2 Xe
                     </th>
-                    <th className="h-14 px-4 align-middle">Ngày</th>
-                    <th className="h-14 px-4 align-middle text-right">Tổng thu</th>
-                    <th className="h-14 px-4 align-middle text-right">Chi chung</th>
-                    <th className="h-14 px-4 align-middle text-right font-bold">Tổng dư</th>
-                    <th className="h-14 px-4 align-middle text-right font-bold">Dư chia</th>
-                    <th className="h-14 px-4 align-middle text-right">Chi riêng</th>
-                    <th className="h-14 px-4 align-middle text-right font-bold">Dư còn lại</th>
-                    <th className="h-14 px-4 align-middle text-center"></th>
-                    <th className="h-14 px-4 align-middle w-[350px]">Ghi chú</th>
-                    <th className="h-14 px-4 align-middle text-right">Trạng thái</th>
-                    <th className="h-14 px-4 align-middle w-[60px]"></th>
+                    <th className="h-12 px-4 align-middle">Ngày</th>
+                    <th className="h-12 px-4 align-middle text-right">Tổng thu</th>
+                    <th className="h-12 px-4 align-middle text-right">Chi chung</th>
+                    <th className="h-12 px-4 align-middle text-right font-bold">Tổng dư</th>
+                    <th className="h-12 px-4 align-middle text-right font-bold">Dư chia</th>
+                    <th className="h-12 px-4 align-middle text-right">Chi riêng</th>
+                    <th className="h-12 px-4 align-middle text-right font-bold">Dư còn lại</th>
+                    <th className="h-12 px-4 align-middle text-center"></th>
+                    <th className="h-12 px-4 align-middle w-[350px]">Ghi chú</th>
+                    <th className="h-12 px-4 align-middle text-right">Trạng thái</th>
+                    <th className="h-12 px-4 align-middle w-[50px]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -328,23 +328,23 @@ export const Dashboard: React.FC = () => {
                     </tr>
                   ) : filteredTransactions.map((t) => (
                     <tr key={t.id} className="hover:bg-slate-50/60 transition-colors group">
-                      <td className="p-4 align-middle text-center">
+                      <td className="p-3 align-middle text-center">
                          <input 
                           type="checkbox" 
                           checked={t.isShared} 
                           disabled
-                          className="w-5 h-5 rounded border-gray-300 text-slate-900 accent-slate-900 focus:ring-slate-900 cursor-not-allowed disabled:opacity-100" 
+                          className="w-4 h-4 rounded border-gray-300 text-slate-900 accent-slate-900 focus:ring-slate-900 cursor-not-allowed disabled:opacity-100" 
                           title={t.isShared ? "Đi 2 xe" : "Đi 1 xe (Dư chia / 2)"}
                         />
                       </td>
-                      <td className="p-4 align-middle font-medium">{t.date}</td>
-                      <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
-                      <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
-                      <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
-                      <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
-                      <td className="p-4 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
-                      <td className="p-4 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
-                      <td className="p-4 align-middle text-center">
+                      <td className="p-3 align-middle font-medium">{t.date}</td>
+                      <td className="p-3 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
+                      <td className="p-3 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
+                      <td className="p-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
+                      <td className="p-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
+                      <td className="p-3 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
+                      <td className="p-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
+                      <td className="p-3 align-middle text-center">
                         <button 
                           onClick={() => handleOpenDetail(t)}
                           className="text-sm font-medium cursor-pointer hover:underline text-blue-600"
@@ -352,15 +352,15 @@ export const Dashboard: React.FC = () => {
                           Chi tiết
                         </button>
                       </td>
-                      <td className="p-4 align-middle text-slate-600 truncate max-w-[350px]" title={t.note}>
+                      <td className="p-3 align-middle text-slate-600 truncate max-w-[350px]" title={t.note}>
                         {t.note}
                       </td>
-                      <td className="p-4 align-middle text-right">
+                      <td className="p-3 align-middle text-right">
                         <Badge status={t.status} />
                       </td>
-                      <td className="p-4 align-middle text-right">
+                      <td className="p-3 align-middle text-right">
                          <button className="text-slate-400 hover:text-slate-600 p-1">
-                            <MoreVertical size={20} />
+                            <MoreVertical size={16} />
                          </button>
                       </td>
                     </tr>
@@ -369,7 +369,7 @@ export const Dashboard: React.FC = () => {
               </table>
             </div>
             
-            <div className="border-t p-4 bg-slate-50 flex items-center justify-between text-sm text-slate-500">
+            <div className="border-t p-4 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
                <span className="font-medium italic">
                  * Đơn vị tính: Nghìn đồng (Ví dụ: 13.400 = 13.400.000đ)
                </span>
