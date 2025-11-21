@@ -295,23 +295,23 @@ export const Dashboard: React.FC = () => {
           {/* Table - Uses FILTERED transactions */}
           <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-sm text-left whitespace-nowrap">
-                <thead className="bg-slate-100 text-slate-700 font-semibold border-b">
+              <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
+                <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
                   <tr>
-                    <th className="h-12 px-3 align-middle w-[50px] text-center" title="Tích chọn nếu đi 2 xe">
+                    <th className="h-12 px-2 align-middle w-[60px] text-center" title="Tích chọn nếu đi 2 xe">
                        Đi 2 xe
                     </th>
-                    <th className="h-12 px-3 align-middle w-[100px] text-left">Ngày</th>
-                    <th className="h-12 px-3 align-middle text-right w-[100px]">Tổng thu</th>
-                    <th className="h-12 px-3 align-middle text-right w-[100px]">Chi chung</th>
-                    <th className="h-12 px-3 align-middle text-right font-bold w-[100px]">Tổng dư</th>
-                    <th className="h-12 px-3 align-middle text-right font-bold w-[100px]">Dư chia</th>
-                    <th className="h-12 px-3 align-middle text-right w-[100px]">Chi riêng</th>
-                    <th className="h-12 px-3 align-middle text-right font-bold w-[100px]">Dư còn lại</th>
-                    <th className="h-12 px-3 align-middle text-center w-[80px]"></th>
-                    <th className="h-12 px-3 align-middle min-w-[200px]">Ghi chú</th>
-                    <th className="h-12 px-3 align-middle text-right w-[140px]">Trạng thái</th>
-                    <th className="h-12 px-3 align-middle w-[40px]"></th>
+                    <th className="h-12 px-2 align-middle w-[100px] text-center">Ngày</th>
+                    <th className="h-12 px-2 align-middle text-right w-[90px]">Tổng thu</th>
+                    <th className="h-12 px-2 align-middle text-right w-[90px]">Chi chung</th>
+                    <th className="h-12 px-2 align-middle text-right font-bold w-[90px]">Tổng dư</th>
+                    <th className="h-12 px-2 align-middle text-right font-bold w-[90px]">Dư chia</th>
+                    <th className="h-12 px-2 align-middle text-right w-[90px]">Chi riêng</th>
+                    <th className="h-12 px-2 align-middle text-right font-bold w-[90px]">Dư còn lại</th>
+                    <th className="h-12 px-2 align-middle text-center w-[70px]"></th>
+                    <th className="h-12 px-4 align-middle">Ghi chú</th>
+                    <th className="h-12 px-2 align-middle text-right w-[140px]">Trạng thái</th>
+                    <th className="h-12 px-2 align-middle w-[40px]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -327,7 +327,7 @@ export const Dashboard: React.FC = () => {
                     </tr>
                   ) : filteredTransactions.map((t) => (
                     <tr key={t.id} className="hover:bg-slate-50/60 transition-colors group">
-                      <td className="px-3 py-3 align-middle text-center">
+                      <td className="px-2 py-3 align-middle text-center">
                          <input 
                           type="checkbox" 
                           checked={t.isShared} 
@@ -336,28 +336,28 @@ export const Dashboard: React.FC = () => {
                           title={t.isShared ? "Đi 2 xe" : "Đi 1 xe (Dư chia / 2)"}
                         />
                       </td>
-                      <td className="px-3 py-3 align-middle font-medium text-left text-slate-900">{t.date}</td>
-                      <td className="px-3 py-3 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
-                      <td className="px-3 py-3 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
-                      <td className="px-3 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
-                      <td className="px-3 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
-                      <td className="px-3 py-3 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
-                      <td className="px-3 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
-                      <td className="px-3 py-3 align-middle text-center">
+                      <td className="px-2 py-3 align-middle font-medium text-center text-slate-900">{t.date}</td>
+                      <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
+                      <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
+                      <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
+                      <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
+                      <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
+                      <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
+                      <td className="px-2 py-3 align-middle text-center">
                         <button 
                           onClick={() => handleOpenDetail(t)}
-                          className="text-xs font-semibold text-slate-500 hover:text-blue-600 hover:underline"
+                          className="text-xs font-semibold text-slate-900 hover:text-blue-600"
                         >
                           Chi tiết
                         </button>
                       </td>
-                      <td className="px-3 py-3 align-middle text-slate-600 truncate max-w-[350px]" title={t.note}>
+                      <td className="px-4 py-3 align-middle text-slate-600 truncate" title={t.note}>
                         {t.note}
                       </td>
-                      <td className="px-3 py-3 align-middle text-right">
+                      <td className="px-2 py-3 align-middle text-right">
                         <Badge status={t.status} />
                       </td>
-                      <td className="px-3 py-3 align-middle text-right">
+                      <td className="px-2 py-3 align-middle text-right">
                          <button className="text-slate-400 hover:text-slate-600 p-1">
                             <MoreVertical size={16} />
                          </button>

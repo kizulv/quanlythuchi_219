@@ -1,31 +1,36 @@
 import React from 'react';
 import { TransactionStatus } from '../../types';
-import { CheckCircle2, Sparkles, CircleDollarSign } from 'lucide-react';
+import { Check, Sparkles, Wallet } from 'lucide-react';
 
 interface BadgeProps {
   status: TransactionStatus;
 }
 
 export const Badge: React.FC<BadgeProps> = ({ status }) => {
+  // Base classes for common shape and size
+  const baseClasses = "inline-flex items-center justify-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap transition-colors";
+
   switch (status) {
     case TransactionStatus.VERIFIED:
       return (
-        <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700 whitespace-nowrap">
-          <CheckCircle2 className="mr-1 h-3 w-3" />
+        <span className={`${baseClasses} border-green-200 bg-white text-green-600`}>
+          <div className="mr-1 rounded-full bg-green-600 p-[1px]">
+            <Check className="h-2 w-2 text-white" strokeWidth={4} />
+          </div>
           Đã đối soát
         </span>
       );
     case TransactionStatus.AI_GENERATED:
       return (
-        <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700 whitespace-nowrap">
+        <span className={`${baseClasses} border-purple-200 bg-white text-purple-600`}>
           <Sparkles className="mr-1 h-3 w-3" />
           Tạo bởi AI
         </span>
       );
     case TransactionStatus.PAID:
       return (
-        <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 whitespace-nowrap">
-          <CircleDollarSign className="mr-1 h-3 w-3" />
+        <span className={`${baseClasses} border-slate-200 bg-white text-slate-600`}>
+          <Wallet className="mr-1 h-3 w-3" />
           Đã thanh toán
         </span>
       );
