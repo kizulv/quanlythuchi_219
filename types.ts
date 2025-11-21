@@ -1,8 +1,7 @@
 
 export enum TransactionStatus {
   PAID = 'PAID',
-  VERIFIED = 'VERIFIED',
-  AI_GENERATED = 'AI_GENERATED'
+  VERIFIED = 'VERIFIED'
 }
 
 export interface TransactionBreakdown {

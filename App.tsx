@@ -9,13 +9,9 @@ import { Dashboard } from './components/Dashboard';
   Icons: Lucide React
   
   Architecture Note:
-  While the request asked for NextJS + PostgreSQL, this output is a client-side
-  React SPA generation (per the system prompt constraints). 
-  
   To adapt to NextJS/Postgres:
   1. Move `components/Dashboard.tsx` to `app/dashboard/page.tsx` (Client Component).
-  2. Replace `services/geminiService.ts` with a Server Action or API Route.
-  3. Connect the Table data fetch (`useEffect`) to a Prisma/Postgres database query.
+  2. Connect the Table data fetch (`useEffect`) to a Prisma/Postgres database query.
 */
 
 const App: React.FC = () => {
