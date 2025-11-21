@@ -490,8 +490,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                </div>
             </section>
 
-            {/* REVENUE SECTION - Boxed */}
-            <section className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+            {/* REVENUE SECTION */}
+            <section className="space-y-3">
                {/* Header */}
                <div className={`${gridClass} pb-2 border-b border-slate-100`}>
                   <div className="flex items-center gap-2">
@@ -548,8 +548,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                </div>
             </section>
 
-            {/* EXPENSE SECTION - Boxed */}
-            <section className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+            {/* EXPENSE SECTION */}
+            <section className="space-y-3">
                {/* Header */}
                <div className={`${gridClass} pb-2 border-b border-slate-100`}>
                   <div className="flex items-center gap-2">
@@ -682,7 +682,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
                   {/* Dynamic Private Expenses Logic - Only show if NOT shared (Đi 1 xe) */}
                   {!breakdown.isShared && (
-                    <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200 col-span-2">
+                    <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
                        <div className={gridClass}>
                           <span className="text-sm font-medium text-slate-600">Trừ chi riêng</span>
                           <div className="w-full h-9 flex items-center justify-end px-3 border border-transparent">
@@ -690,7 +690,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                           </div>
                        </div>
                        
-                       <div className="space-y-2 pt-1 pl-[calc(100%-160px-200px)]">
+                       <div className="space-y-2 pt-1">
                           {privateExpenses.map((item) => (
                              <div key={item.id} className={dynamicGridClass}>
                                 <button 

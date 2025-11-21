@@ -10,14 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
-      // Polyfill process for browser environment to avoid 'process is not defined' errors
-      window.process = {
-        env: {
-          NODE_ENV: 'development',
-          API_KEY: '' // Will be populated by build system if available, or remain empty
-        }
-      };
-      
       tailwind.config = {
         theme: {
           extend: {
