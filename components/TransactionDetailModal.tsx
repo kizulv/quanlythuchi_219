@@ -359,16 +359,16 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     onSave(updated);
   };
 
-  // Common Grid column class to ensure alignment
-  // 1fr for label, 160px for input
-  const gridClass = "grid grid-cols-[1fr_160px] gap-4 items-center";
-  const dynamicGridClass = "grid grid-cols-[32px_1fr_160px] gap-2 items-center";
+  // Common Grid column class - Compact Mode
+  // 1fr for label, 130px for input (reduced from 160px)
+  const gridClass = "grid grid-cols-[1fr_130px] gap-2 items-center";
+  const dynamicGridClass = "grid grid-cols-[28px_1fr_130px] gap-2 items-center";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-6 font-sans">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 md:p-4 font-sans">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Left Side: Image Viewer */}
-        <div className="w-full md:w-1/2 bg-slate-900 relative flex flex-col group border-r border-slate-800">
+        <div className="hidden md:flex md:w-6/12 bg-slate-900 relative flex-col group border-r border-slate-800">
           <div className="absolute top-4 left-4 text-white font-semibold z-10 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md border border-white/10 text-sm">
             {transaction.date}
           </div>
@@ -382,25 +382,20 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               />
             ) : (
               <div className="relative w-full h-full bg-slate-900 rounded-lg overflow-hidden flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-800">
-                <ImageIcon size={64} className="mb-4 opacity-50" />
-                <p className="text-sm font-medium">Chưa có hình ảnh sổ sách</p>
-                <p className="text-xs mt-2 opacity-70">
-                  Upload ảnh sổ viết tay để đối chiếu
-                </p>
+                <ImageIcon size={48} className="mb-3 opacity-50" />
+                <p className="text-sm font-medium">Chưa có hình ảnh</p>
               </div>
             )}
 
             {isUploading && (
               <div className="absolute inset-0 bg-black/70 z-20 flex flex-col items-center justify-center text-white backdrop-blur-sm">
-                <Loader2 size={40} className="animate-spin mb-2" />
-                <span className="text-sm font-medium">
-                  Đang xử lý & nén ảnh...
-                </span>
+                <Loader2 size={32} className="animate-spin mb-2" />
+                <span className="text-xs font-medium">Đang xử lý...</span>
               </div>
             )}
           </div>
 
-          <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3 z-10 px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <input
               type="file"
               ref={fileInputRef}
@@ -410,24 +405,25 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             />
             <Button
               variant="primary"
-              className="shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium"
+              size="sm"
+              className="shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium h-9"
               onClick={triggerUpload}
               disabled={isUploading}
             >
-              <Upload size={18} className="mr-2" />
-              {imageUrl ? "Thay ảnh khác" : "Tải ảnh lên"}
+              <Upload size={16} className="mr-2" />
+              {imageUrl ? "Thay ảnh" : "Tải ảnh"}
             </Button>
           </div>
         </div>
 
-        {/* Right Side: Form */}
-        <div className="w-full md:w-1/2 bg-white flex flex-col h-full text-slate-900">
+        {/* Right Side: Form - COMPACT LAYOUT */}
+        <div className="w-full md:w-6/12 bg-white flex flex-col h-full text-slate-900">
           {/* Header */}
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+          <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <div>
-              <h2 className="font-bold text-lg text-slate-900">Chi tiết đối soát</h2>
+              <h2 className="font-bold text-base text-slate-900 leading-none">Chi tiết đối soát</h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">
+                <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-medium">
                   {transaction.date}
                 </span>
                 <span>•</span>
@@ -436,38 +432,36 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+              className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          {/* Body - Reduced padding and spacing */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
             
             {/* CONFIG SECTION */}
-            <section className="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-4 shadow-sm">
+            <section className="bg-slate-50/80 rounded-lg border border-slate-200 p-3 space-y-2 shadow-sm">
                <div className="flex items-center justify-between">
-                  <label className="flex items-center space-x-3 cursor-pointer group select-none">
-                     <div className="relative flex items-center">
-                        <input 
-                          type="checkbox" 
-                          checked={breakdown.isShared} 
-                          onChange={handleCheckboxChange}
-                          className="peer h-5 w-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 transition-all cursor-pointer"
-                        />
-                     </div>
-                     <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                  <label className="flex items-center space-x-2 cursor-pointer group select-none">
+                     <input 
+                        type="checkbox" 
+                        checked={breakdown.isShared} 
+                        onChange={handleCheckboxChange}
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-900"
+                     />
+                     <span className="text-sm font-semibold text-slate-700">
                         Chế độ đi 2 xe (Ăn chia)
                      </span>
                   </label>
                </div>
                
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Xe chính</label>
+               <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe chính</label>
                      <select 
-                        className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
+                        className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
                         value={breakdown.busId}
                         onChange={(e) => setBreakdown({ ...breakdown, busId: e.target.value })}
                      >
@@ -476,10 +470,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                      </select>
                   </div>
                   
-                  <div className={`space-y-1.5 transition-all duration-200 ${!breakdown.isShared ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
-                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Xe đối tác</label>
+                  <div className={`space-y-1 transition-all duration-200 ${!breakdown.isShared ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
+                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe đối tác</label>
                      <select 
-                        className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
+                        className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
                         value={breakdown.partnerBusId}
                         onChange={(e) => setBreakdown({ ...breakdown, partnerBusId: e.target.value })}
                      >
@@ -491,44 +485,44 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             </section>
 
             {/* REVENUE SECTION */}
-            <section className="space-y-3">
+            <section className="space-y-1.5">
                {/* Header */}
-               <div className={`${gridClass} pb-2 border-b border-slate-100`}>
-                  <div className="flex items-center gap-2">
-                     <div className="w-1 h-4 bg-green-500 rounded-full"></div>
-                     <h3 className="font-semibold text-slate-800">Tổng Nguồn thu</h3>
+               <div className={`${gridClass} pb-1 border-b border-slate-100`}>
+                  <div className="flex items-center gap-1.5">
+                     <div className="w-1 h-3 bg-green-500 rounded-full"></div>
+                     <h3 className="font-semibold text-slate-800 text-sm">Tổng Thu</h3>
                   </div>
-                  <div className="w-full h-10 rounded-md border border-green-200 bg-green-50/50 px-3 flex items-center justify-end">
-                     <span className="text-lg font-bold text-green-600">{formatForDisplay(totalRevenue)}</span>
+                  <div className="w-full h-8 rounded border border-green-200 bg-green-50/50 px-2 flex items-center justify-end">
+                     <span className="text-sm font-bold text-green-600">{formatForDisplay(totalRevenue)}</span>
                   </div>
                </div>
                
-               <div className="space-y-2">
+               <div className="space-y-1.5">
                   <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} displayFormatter={formatForDisplay} />
                   <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} displayFormatter={formatForDisplay} />
                   
                   {/* Dynamic Revenue Items */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                      {otherRevenues.map((item) => (
                         <div key={item.id} className={dynamicGridClass}>
                            <button 
                               onClick={() => removeOtherRevenueItem(item.id)}
-                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
                               title="Xóa"
                            >
-                              <Trash2 size={16} />
+                              <Trash2 size={14} />
                            </button>
                            <input
                               type="text"
-                              placeholder="Nhập tên khoản thu..."
-                              className="w-full h-9 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 font-medium"
+                              placeholder="Tên khoản thu..."
+                              className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
                               value={item.description}
                               onChange={(e) => updateOtherRevenueItem(item.id, 'description', e.target.value)}
                            />
                            <input
                               type="text"
                               placeholder="0"
-                              className="w-full text-right h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
+                              className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
                               value={formatForDisplay(item.amount)}
                               onChange={(e) => updateOtherRevenueItem(item.id, 'amount', parseInput(e.target.value))}
                            />
@@ -536,36 +530,35 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                      ))}
                   </div>
 
-                  <div className="pt-1">
+                  <div className="pt-0.5">
                     <button 
                        onClick={addOtherRevenueItem}
-                       className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-100 ml-[-8px]"
+                       className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
                     >
-                       <Plus size={16} />
-                       Thêm khoản thu khác
+                       <Plus size={14} />
+                       Thêm khoản thu
                     </button>
                   </div>
                </div>
             </section>
 
             {/* EXPENSE SECTION */}
-            <section className="space-y-3">
+            <section className="space-y-1.5 pt-1">
                {/* Header */}
-               <div className={`${gridClass} pb-2 border-b border-slate-100`}>
-                  <div className="flex items-center gap-2">
-                     <div className="w-1 h-4 bg-red-500 rounded-full"></div>
-                     <h3 className="font-semibold text-slate-800">Tổng Chi phí</h3>
+               <div className={`${gridClass} pb-1 border-b border-slate-100`}>
+                  <div className="flex items-center gap-1.5">
+                     <div className="w-1 h-3 bg-red-500 rounded-full"></div>
+                     <h3 className="font-semibold text-slate-800 text-sm">Tổng Chi</h3>
                   </div>
-                  {/* Total Expense is now editable */}
                   <input
                      type="text"
-                     className="w-full text-right h-10 rounded-md border border-red-200 bg-red-50/50 px-3 text-lg font-bold text-red-600 focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all"
+                     className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
                      value={formatForDisplay(totalExpenseInput)}
                      onChange={(e) => handleTotalExpenseChange(e.target.value)}
                   />
                </div>
                
-               <div className="space-y-2">
+               <div className="space-y-1.5">
                   <InputRow 
                      label="Dầu" 
                      value={breakdown.expenseFuel} 
@@ -573,21 +566,21 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                      displayFormatter={formatForDisplay} 
                   />
                   
-                  {/* Fixed Expense is now Calculated / Read Only */}
-                  <div className={`${gridClass} group py-1`}>
+                  {/* Fixed Expense */}
+                  <div className={`${gridClass} group`}>
                     <div className="flex items-center gap-2">
-                       <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">Chi cố định</span>
-                       <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 rounded">Tự động</span>
+                       <span className="text-sm text-slate-600 group-hover:text-slate-900 truncate">Chi cố định</span>
+                       <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">Auto</span>
                     </div>
                     <div className="relative w-full">
                        <input
                          type="text"
                          disabled
-                         className="w-full text-right h-9 rounded-md border border-slate-100 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed"
+                         className="w-full text-right h-8 rounded border border-slate-100 bg-slate-100 px-2 text-sm font-medium text-slate-500 cursor-not-allowed"
                          value={formatForDisplay(breakdown.expenseFixed)}
                          readOnly
                        />
-                       <Lock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                       <Lock size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>
                   </div>
 
@@ -605,27 +598,27 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   />
                   
                   {/* Dynamic Expense Items */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                      {otherExpenses.map((item) => (
                         <div key={item.id} className={dynamicGridClass}>
                            <button 
                               onClick={() => removeOtherExpenseItem(item.id)}
-                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
                               title="Xóa"
                            >
-                              <Trash2 size={16} />
+                              <Trash2 size={14} />
                            </button>
                            <input
                               type="text"
-                              placeholder="Nhập tên khoản chi..."
-                              className="w-full h-9 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 font-medium"
+                              placeholder="Tên khoản chi..."
+                              className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
                               value={item.description}
                               onChange={(e) => updateOtherExpenseItem(item.id, 'description', e.target.value)}
                            />
                            <input
                               type="text"
                               placeholder="0"
-                              className="w-full text-right h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
+                              className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
                               value={formatForDisplay(item.amount)}
                               onChange={(e) => updateOtherExpenseItem(item.id, 'amount', parseInput(e.target.value))}
                            />
@@ -633,35 +626,35 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                      ))}
                   </div>
 
-                  <div className="pt-1">
+                  <div className="pt-0.5">
                     <button 
                        onClick={addOtherExpenseItem}
-                       className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-100 ml-[-8px]"
+                       className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
                     >
-                       <Plus size={16} />
-                       Thêm khoản chi khác
+                       <Plus size={14} />
+                       Thêm khoản chi
                     </button>
                   </div>
                </div>
             </section>
 
             {/* SUMMARY SECTION */}
-            <section className="bg-slate-50 rounded-xl border border-slate-200 p-5 shadow-sm">
-               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Tổng kết tài chính</h3>
-               <div className="space-y-4">
+            <section className="bg-slate-50 rounded-lg border border-slate-200 p-3 shadow-sm">
+               <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tổng kết</h3>
+               <div className="space-y-2">
                   <div className={gridClass}>
-                     <span className="text-sm font-medium text-slate-600">Tổng dư (Thu - Chi)</span>
+                     <span className="text-sm font-medium text-slate-600">Tổng dư (Thu-Chi)</span>
                      {isManualBalanceMode ? (
                         <input
                            type="text"
-                           placeholder="Nhập số dư..."
-                           className="w-full text-right h-9 rounded-md border border-primary/50 bg-white px-3 text-base font-bold text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                           placeholder="Số dư..."
+                           className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
                            value={formatForDisplay(customTotalBalance)}
                            onChange={(e) => setCustomTotalBalance(parseInput(e.target.value))}
                         />
                      ) : (
-                        <div className="w-full h-9 flex items-center justify-end px-3 border border-transparent">
-                            <span className="font-bold text-base text-slate-800">{formatForDisplay(totalBalance)}</span>
+                        <div className="w-full h-8 flex items-center justify-end px-2">
+                            <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalBalance)}</span>
                         </div>
                      )}
                   </div>
@@ -669,48 +662,48 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   <div className={gridClass}>
                      <span className="text-sm font-medium text-slate-600 flex items-center gap-2">
                         Dư sau chia
-                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 rounded text-slate-500 font-semibold">
-                           {breakdown.isShared ? 'CHIA 2 XE' : 'CHIA 1 XE (50%)'}
+                        <span className="text-[9px] px-1 py-0.5 bg-slate-200 rounded text-slate-500 font-bold">
+                           {breakdown.isShared ? '100% - Chia tổng thu' : '50% - Ăn chia'}
                         </span>
                      </span>
-                     <div className="w-full h-9 flex items-center justify-end px-3 border border-transparent">
-                        <span className="font-bold text-base text-slate-800">{formatForDisplay(splitBalance)}</span>
+                     <div className="w-full h-8 flex items-center justify-end px-2">
+                        <span className="font-bold text-sm text-slate-800">{formatForDisplay(splitBalance)}</span>
                      </div>
                   </div>
                   
-                  {!breakdown.isShared && <div className="h-px bg-slate-200 my-2 col-span-2"></div>}
+                  {!breakdown.isShared && <div className="h-px bg-slate-200 my-1 col-span-2"></div>}
 
-                  {/* Dynamic Private Expenses Logic - Only show if NOT shared (Đi 1 xe) */}
+                  {/* Dynamic Private Expenses Logic */}
                   {!breakdown.isShared && (
-                    <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
                        <div className={gridClass}>
                           <span className="text-sm font-medium text-slate-600">Trừ chi riêng</span>
-                          <div className="w-full h-9 flex items-center justify-end px-3 border border-transparent">
-                            <span className="font-bold text-base text-slate-800">{formatForDisplay(totalPrivateExpense)}</span>
+                          <div className="w-full h-8 flex items-center justify-end px-2">
+                            <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalPrivateExpense)}</span>
                           </div>
                        </div>
                        
-                       <div className="space-y-2 pt-1">
+                       <div className="space-y-1.5 pt-0.5">
                           {privateExpenses.map((item) => (
                              <div key={item.id} className={dynamicGridClass}>
                                 <button 
                                    onClick={() => removePrivateExpenseItem(item.id)}
-                                   className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
+                                   className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
                                    title="Xóa"
                                 >
-                                   <Trash2 size={16} />
+                                   <Trash2 size={14} />
                                 </button>
                                 <input
                                    type="text"
-                                   placeholder="Nhập khoản chi riêng..."
-                                   className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 font-medium"
+                                   placeholder="Khoản chi riêng..."
+                                   className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
                                    value={item.description}
                                    onChange={(e) => updatePrivateExpenseItem(item.id, 'description', e.target.value)}
                                 />
                                 <input
                                    type="text"
                                    placeholder="0"
-                                   className="w-full text-right h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
+                                   className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
                                    value={formatForDisplay(item.amount)}
                                    onChange={(e) => updatePrivateExpenseItem(item.id, 'amount', parseInput(e.target.value))}
                                 />
@@ -718,56 +711,56 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                           ))}
                        </div>
 
-                       <div className="pt-1">
+                       <div className="pt-0.5">
                           <button 
                              onClick={addPrivateExpenseItem}
-                             className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-100 ml-[-8px]"
+                             className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
                           >
-                             <Plus size={16} />
-                             Thêm khoản chi riêng
+                             <Plus size={14} />
+                             Thêm chi riêng
                           </button>
                        </div>
                     </div>
                   )}
 
-                  <div className="h-px bg-slate-200 my-2 col-span-2"></div>
+                  <div className="h-px bg-slate-200 my-1 col-span-2"></div>
 
-                  <div className={`${gridClass} pt-1`}>
-                     <span className="text-base font-bold text-slate-900">Dư thực nhận</span>
-                     <div className="w-full h-9 flex items-center justify-end px-3 border border-transparent">
-                        <span className="text-2xl font-bold text-primary">{formatForDisplay(remainingBalance)}</span>
+                  <div className={`${gridClass} pt-0.5`}>
+                     <span className="text-sm font-bold text-slate-900">Dư thực nhận</span>
+                     <div className="w-full h-8 flex items-center justify-end px-2">
+                        <span className="text-xl font-bold text-primary">{formatForDisplay(remainingBalance)}</span>
                      </div>
                   </div>
                </div>
             </section>
 
             {/* NOTES SECTION */}
-            <div className="space-y-2">
-               <label className="text-sm font-semibold text-slate-700">Ghi chú</label>
+            <div className="space-y-1">
+               <label className="text-xs font-semibold text-slate-600">Ghi chú thêm</label>
                <textarea
-                  className="flex min-h-[80px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-50 resize-none shadow-sm"
+                  className="flex min-h-[60px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 resize-none shadow-sm"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Nhập ghi chú thêm..."
+                  placeholder="Nhập ghi chú..."
                />
             </div>
           </div>
 
           {/* Footer */}
-          <div className="p-5 border-t border-slate-100 bg-white flex gap-3 z-10">
+          <div className="p-4 border-t border-slate-100 bg-white flex gap-3 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.03)]">
             <Button
               variant="outline"
-              className="flex-1 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-11"
+              className="flex-1 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-10"
               onClick={onClose}
             >
               Đóng
             </Button>
             <Button
               variant="primary"
-              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-11"
+              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10"
               onClick={handleSave}
             >
-              Lưu lại
+              Lưu thay đổi
             </Button>
           </div>
         </div>
@@ -776,7 +769,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   );
 };
 
-// Helper component for input rows with new Grid styling
+// Helper component for input rows with Compact Mode
 const InputRow = ({
   label,
   value,
@@ -788,11 +781,11 @@ const InputRow = ({
   onChange: (v: string) => void;
   displayFormatter: (v: number) => string;
 }) => (
-  <div className="grid grid-cols-[1fr_160px] gap-4 items-center group py-1">
-    <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors truncate" title={label}>{label}</span>
+  <div className="grid grid-cols-[1fr_130px] gap-2 items-center group">
+    <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors truncate" title={label}>{label}</span>
     <input
       type="text"
-      className="w-full text-right h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all"
+      className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
       value={displayFormatter(value)}
       onChange={(e) => onChange(e.target.value)}
     />
