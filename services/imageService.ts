@@ -1,9 +1,27 @@
 
-// Mock storage để giả lập hệ thống file server
+// Mock storage để lưu trữ dữ liệu ảnh trong bộ nhớ (Giả lập ổ cứng Server)
+// Key: Đường dẫn file (VD: /images/2025-11-02.jpg)
+// Value: Dữ liệu ảnh Base64 thực tế
 const mockFileSystem: Record<string, string> = {};
 
 /**
- * Xử lý upload ảnh, resize về 666x1182 và giả lập logic lưu file
+ * Helper function: Resolve đường dẫn file thành dữ liệu ảnh để hiển thị
+ * Nếu là đường dẫn giả lập (/images/...), lấy từ mockFileSystem
+ * Nếu là đường dẫn thật (http...), trả về nguyên vẹn
+ */
+export const resolveImageUrl = (path?: string): string | undefined => {
+  if (!path) return undefined;
+  // Nếu path nằm trong bộ nhớ giả lập, trả về data base64
+  if (mockFileSystem[path]) {
+    return mockFileSystem[path];
+  }
+  // Nếu không, trả về path gốc (trường hợp ảnh có sẵn trên server thật)
+  return path;
+};
+
+/**
+ * Xử lý upload ảnh, resize về 666x1182, giả lập lưu vào /public/images/
+ * và xử lý logic rename file cũ.
  */
 export const processAndUploadImage = async (file: File, dateStr: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -51,39 +69,44 @@ export const processAndUploadImage = async (file: File, dateStr: string): Promis
         // Vẽ ảnh lên canvas
         ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
 
-        // 2. Xuất ảnh ra Base64 (Giả lập URL file)
+        // 2. Xuất ảnh ra Base64 (Dữ liệu thực tế của file)
         const processedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
 
-        // 3. Xử lý logic tên file
+        // 3. Xử lý tên file và đường dẫn
         // Format date input: "DD/MM/YYYY" -> convert to "YYYY-MM-DD"
         const [day, month, year] = dateStr.split('/');
-        const baseFileName = `${year}-${month}-${day}.jpg`;
-        const publicPath = `/public/images/`;
         
-        // Kiểm tra xem file đã tồn tại chưa (Trong mockFileSystem)
-        if (mockFileSystem[baseFileName]) {
-          // Logic: Rename file CŨ thành -01, -02...
+        // Tên file gốc mong muốn
+        const fileName = `${year}-${month}-${day}.jpg`;
+        // Đường dẫn giả lập (sẽ hiển thị trên UI)
+        const filePath = `/images/${fileName}`;
+        
+        // LOGIC ĐỔI TÊN:
+        // Nếu trong folder đã tồn tại file cùng tên (filePath)
+        if (mockFileSystem[filePath]) {
+          // Rename file CŨ thành: năm-tháng-ngày-01.jpg (02, 03...)
           let counter = 1;
-          let oldFileRename = `${year}-${month}-${day}-${counter.toString().padStart(2, '0')}.jpg`;
+          let oldFileRenamedName = `${year}-${month}-${day}-${counter.toString().padStart(2, '0')}.jpg`;
+          let oldFileRenamedPath = `/images/${oldFileRenamedName}`;
           
           // Tìm tên mới chưa tồn tại cho file cũ
-          while (mockFileSystem[oldFileRename]) {
+          while (mockFileSystem[oldFileRenamedPath]) {
             counter++;
-            oldFileRename = `${year}-${month}-${day}-${counter.toString().padStart(2, '0')}.jpg`;
+            oldFileRenamedName = `${year}-${month}-${day}-${counter.toString().padStart(2, '0')}.jpg`;
+            oldFileRenamedPath = `/images/${oldFileRenamedName}`;
           }
 
           // Di chuyển dữ liệu cũ sang tên mới
-          mockFileSystem[oldFileRename] = mockFileSystem[baseFileName];
-          console.log(`[System] Renamed old file ${baseFileName} to ${oldFileRename}`);
+          mockFileSystem[oldFileRenamedPath] = mockFileSystem[filePath];
+          console.log(`[System] Renamed EXISTING file to: ${oldFileRenamedPath}`);
         }
 
-        // Lưu file MỚI vào tên chính
-        mockFileSystem[baseFileName] = processedDataUrl;
-        console.log(`[System] Saved new file to ${baseFileName}`);
+        // Lưu file MỚI vào tên chính (Ghi đè lên key cũ đã được backup)
+        mockFileSystem[filePath] = processedDataUrl;
+        console.log(`[System] Uploaded NEW file to: ${filePath}`);
 
-        // Trong môi trường thật, server sẽ trả về URL. Ở đây ta trả về DataURL để hiển thị ngay
-        // Nhưng logic tên file đã được xử lý như yêu cầu.
-        resolve(processedDataUrl); 
+        // Trả về đường dẫn "sạch" để lưu vào database
+        resolve(filePath); 
       };
 
       img.onerror = (err) => reject(err);
