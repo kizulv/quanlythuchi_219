@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Calculator, Check, Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
 import { Transaction, TransactionBreakdown } from '../types';
 import { Button } from './ui/Button';
-import { processAndUploadImage, resolveImageUrl } from '../services/imageService';
+import { processAndUploadImage } from '../services/imageService';
 
 interface TransactionDetailModalProps {
   transaction: Transaction;
@@ -115,21 +115,14 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         
         {/* Left Side: Image Viewer */}
         <div className="w-full md:w-1/2 bg-slate-900 relative flex flex-col group">
-          <div className="absolute top-4 left-4 z-10 flex flex-col gap-1">
-             <div className="text-white font-semibold bg-black/50 px-3 py-1 rounded-full backdrop-blur-md self-start">
-               {transaction.date}
-             </div>
-             {imageUrl && (
-               <div className="text-xs text-slate-300 bg-black/30 px-2 py-1 rounded backdrop-blur-sm self-start font-mono">
-                 Src: {imageUrl}
-               </div>
-             )}
+          <div className="absolute top-4 left-4 text-white font-semibold z-10 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">
+            {transaction.date}
           </div>
           
           <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
             {imageUrl ? (
               <img 
-                src={resolveImageUrl(imageUrl)} 
+                src={imageUrl} 
                 alt="Sổ ghi chép" 
                 className="w-full h-full object-contain rounded-lg shadow-2xl"
               />
