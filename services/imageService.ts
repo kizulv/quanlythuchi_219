@@ -1,3 +1,4 @@
+
 // Images are uploaded to a small local save server which writes into `public/images/reports`
 // The save server accepts POST /save-image with JSON { baseFileName, dataUrl }
 
@@ -92,12 +93,10 @@ export const processAndUploadImage = async (
           return `${serverUrl}${sep}t=${Date.now()}`;
         }
       } else {
-        console.error("[Upload] Server responded with error", resp.status);
-        const text = await resp.text();
-        console.error(text);
+        console.warn("[Upload] Server upload endpoint not available or failed. Using local preview.");
       }
     } catch (err) {
-      console.error("[Upload] Failed to upload image to save server", err);
+      console.warn("[Upload] Could not connect to upload server. Using local preview.", err);
     }
 
     // Fallback: return the processed data URL so UI can show preview
