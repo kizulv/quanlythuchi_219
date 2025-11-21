@@ -11,23 +11,22 @@ import {
   ChevronDown,
   LayoutDashboard, 
   FileText, 
-  Settings,
-  RefreshCw
+  Settings
 } from 'lucide-react';
-import { Transaction, TransactionStatus } from '../types';
+import { Transaction } from '../types';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { StatsCard } from './StatsCard';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { DashboardCharts } from './DashboardCharts';
+import { getTransactionsByMonth } from '../data/mockData';
 import { exportToExcel } from '../services/excelService';
-import { fetchTransactions, saveTransactionApi } from '../services/transactionService';
 
 export const Dashboard: React.FC = () => {
-  // Initialize to Current Date
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Initialize to November 2025 as requested
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1)); // Month is 0-indexed (10 = Nov)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [prevTransactions, setPrevTransactions] = useState<Transaction[]>([]); 
+  const [prevTransactions, setPrevTransactions] = useState<Transaction[]>([]); // Previous month data
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -38,40 +37,32 @@ export const Dashboard: React.FC = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Load Data
-  const loadData = async () => {
+  useEffect(() => {
     setIsLoading(true);
-    const month = currentDate.getMonth() + 1;
-    const year = currentDate.getFullYear();
-    
-    // Calculate Previous Month
-    let prevMonth = month - 1;
-    let prevYear = year;
-    if (prevMonth === 0) {
-      prevMonth = 12;
-      prevYear = year - 1;
-    }
+    // Simulate API call latency
+    setTimeout(() => {
+      const month = currentDate.getMonth() + 1; // 1-12
+      const year = currentDate.getFullYear();
+      
+      // Calculate Previous Month
+      let prevMonth = month - 1;
+      let prevYear = year;
+      if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear = year - 1;
+      }
 
-    try {
-      const [currentData, prevData] = await Promise.all([
-        fetchTransactions(month, year),
-        fetchTransactions(prevMonth, prevYear)
-      ]);
+      // Fetch from our "Mock Database"
+      const currentData = getTransactionsByMonth(month, year);
+      const prevData = getTransactionsByMonth(prevMonth, prevYear);
 
       setTransactions(currentData);
       setPrevTransactions(prevData);
-    } catch (error) {
-      console.error("Failed to load data", error);
-    } finally {
       setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
+    }, 300);
   }, [currentDate]);
 
-  // Filter transactions based on search term
+  // Filter transactions based on search term (Only for Table display)
   const filteredTransactions = useMemo(() => {
     const lowerTerm = searchTerm.toLowerCase();
     return transactions.filter(t => 
@@ -80,7 +71,10 @@ export const Dashboard: React.FC = () => {
     );
   }, [transactions, searchTerm]);
 
-  // Calculate Statistics
+  // Calculate Statistics based on FULL data (Not filtered)
+  // Requirement update: 
+  // 1. "Tổng dư" = Sum of "Dư còn lại" (remainingBalance)
+  // 2. "Dư sau chia" = "Tổng dư" / 4
   const stats = useMemo(() => {
     const totalRemaining = transactions.reduce((acc, t) => acc + t.remainingBalance, 0);
     return {
@@ -89,6 +83,7 @@ export const Dashboard: React.FC = () => {
     };
   }, [transactions]);
 
+  // Calculate Statistics for PREVIOUS month (Full) with same logic
   const prevStats = useMemo(() => {
     const totalRemaining = prevTransactions.reduce((acc, t) => acc + t.remainingBalance, 0);
     return {
@@ -101,6 +96,8 @@ export const Dashboard: React.FC = () => {
   const diffSplit = stats.splitByFour - prevStats.splitByFour;
 
   const formatCurrency = (val: number) => {
+    // Value stored is already in 'thousands' unit (e.g. 13400 is 13.400.000)
+    // We just need to format it with separators.
     return new Intl.NumberFormat('vi-VN').format(val);
   };
 
@@ -109,52 +106,12 @@ export const Dashboard: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleCreateNew = () => {
-    // Create a blank transaction template
-    const today = new Date();
-    const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-    
-    // Generate a simplified ID
-    const id = `t${Date.now()}`; 
-
-    const newTransaction: Transaction = {
-      id: id,
-      date: formattedDate,
-      revenue: 0,
-      sharedExpense: 0,
-      privateExpense: 0,
-      totalBalance: 0,
-      splitBalance: 0,
-      remainingBalance: 0,
-      note: "",
-      status: TransactionStatus.VERIFIED,
-      details: "Chi tiết",
-      isShared: true,
-      // Breakdown will be initialized in the modal default
-    };
-    setSelectedTransaction(newTransaction);
-    setIsModalOpen(true);
-  };
-
-  const handleSaveTransaction = async (updatedTransaction: Transaction) => {
-    // Optimistic update
-    setTransactions(prev => {
-      const exists = prev.find(t => t.id === updatedTransaction.id);
-      if (exists) {
-        return prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t);
-      }
-      return [...prev, updatedTransaction];
-    });
-    
+  const handleSaveTransaction = (updatedTransaction: Transaction) => {
+    setTransactions(transactions.map(t => 
+      t.id === updatedTransaction.id ? updatedTransaction : t
+    ));
     setIsModalOpen(false);
     setSelectedTransaction(null);
-
-    // Save to DB
-    const success = await saveTransactionApi(updatedTransaction);
-    if (!success) {
-      alert("Lỗi khi lưu vào Cơ sở dữ liệu. Vui lòng kiểm tra kết nối.");
-      loadData(); // Revert on error
-    }
   };
 
   const changeMonth = (increment: number) => {
@@ -174,24 +131,29 @@ export const Dashboard: React.FC = () => {
       return;
     }
     const monthLabel = `${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+    // Export filtered transactions if search is active, otherwise all transactions
     const dataToExport = searchTerm ? filteredTransactions : transactions;
     exportToExcel(dataToExport, monthLabel);
   };
 
+  // Generate last 12 months for dropdown, anchored at Nov 2025
   const last12Months = useMemo(() => {
     const months = [];
-    const anchorDate = new Date(); 
+    // Anchor at Nov 2025
+    const anchorDate = new Date(2025, 10, 1); 
+    
     for (let i = 0; i < 12; i++) {
       const d = new Date(anchorDate);
       d.setMonth(anchorDate.getMonth() - i);
       months.push(d);
     }
+    // Sort chronologically for the calendar view
     return months.sort((a, b) => a.getTime() - b.getTime());
   }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex">
-      {/* Sidebar */}
+      {/* Sidebar (Simplified for visual context) */}
       <aside className="hidden md:flex w-16 flex-col items-center py-4 border-r bg-white space-y-4 fixed h-full z-10 left-0 top-0">
         <div className="p-2 bg-slate-900 rounded-lg text-white">
           <LayoutDashboard size={20} />
@@ -206,12 +168,13 @@ export const Dashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 md:ml-16 w-full">
+        {/* Removed max-w-[1600px] for full width layout */}
         <div className="w-full p-4 md:p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-3">
-               <Button variant="outline" size="sm" className="w-8 h-8 p-0" onClick={loadData} title="Tải lại dữ liệu">
-                  <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+               <Button variant="outline" size="sm" className="w-8 h-8 p-0">
+                  <ChevronLeft size={16} />
                </Button>
                <h1 className="text-xl font-semibold">Báo cáo thu chi xe 25F-002.19</h1>
             </div>
@@ -244,6 +207,7 @@ export const Dashboard: React.FC = () => {
                       <ChevronDown size={14} className={`transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`}/>
                    </button>
                    
+                   {/* Calendar-like Month Picker */}
                    {isMonthPickerOpen && (
                      <>
                       <div 
@@ -291,7 +255,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - Uses FULL stats regardless of search */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <StatsCard 
               title="Tổng dư" 
@@ -319,7 +283,7 @@ export const Dashboard: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-3 w-full md:w-auto">
-               <Button variant="outline" size="md" icon={<Plus size={16}/>} onClick={handleCreateNew}>
+               <Button variant="outline" size="md" icon={<Plus size={16}/>}>
                   Thêm sổ thu chi
                </Button>
                <Button variant="primary" size="md" icon={<CreditCard size={16}/>}>
@@ -328,7 +292,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Table */}
+          {/* Table - Uses FILTERED transactions */}
           <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
@@ -353,16 +317,12 @@ export const Dashboard: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={12} className="p-6 text-center text-muted-foreground">
-                         <div className="flex items-center justify-center gap-2">
-                            <RefreshCw className="animate-spin h-4 w-4"/> Đang kết nối database...
-                         </div>
-                      </td>
+                      <td colSpan={12} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
                     </tr>
                   ) : filteredTransactions.length === 0 ? (
                     <tr>
                        <td colSpan={12} className="p-10 text-center text-muted-foreground">
-                          {searchTerm ? `Không tìm thấy kết quả cho "${searchTerm}"` : "Chưa có dữ liệu cho tháng này. Hãy thêm mới."}
+                          Không tìm thấy dữ liệu phù hợp với "{searchTerm}" trong tháng {currentDate.getMonth() + 1}
                        </td>
                     </tr>
                   ) : filteredTransactions.map((t) => (
@@ -373,6 +333,7 @@ export const Dashboard: React.FC = () => {
                           checked={t.isShared} 
                           disabled
                           className="w-4 h-4 rounded border-gray-300 text-slate-900 accent-slate-900 focus:ring-slate-900 cursor-not-allowed disabled:opacity-100" 
+                          title={t.isShared ? "Đi 2 xe" : "Đi 1 xe (Dư chia / 2)"}
                         />
                       </td>
                       <td className="px-2 py-3 align-middle font-medium text-center text-slate-900">{t.date}</td>
@@ -390,7 +351,7 @@ export const Dashboard: React.FC = () => {
                           Chi tiết
                         </button>
                       </td>
-                      <td className="px-4 py-3 align-middle text-slate-600 truncate max-w-[200px]" title={t.note}>
+                      <td className="px-4 py-3 align-middle text-slate-600 truncate" title={t.note}>
                         {t.note}
                       </td>
                       <td className="px-2 py-3 align-middle text-right">
@@ -409,15 +370,15 @@ export const Dashboard: React.FC = () => {
             
             <div className="border-t p-4 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
                <span className="font-medium italic">
-                 * Dữ liệu từ máy chủ SQL: sql.pcthanh.com
+                 * Đơn vị tính: Nghìn đồng (Ví dụ: 13.400 = 13.400.000đ)
                </span>
                <span>
-                 Hiển thị: {filteredTransactions.length} bản ghi
+                 Hiển thị: {filteredTransactions.length} / {transactions.length} bản ghi
                </span>
             </div>
           </div>
 
-          {/* Charts */}
+          {/* Charts Section - Pass FULL transactions so charts remain static during search */}
           {!isLoading && transactions.length > 0 && (
             <DashboardCharts 
               transactions={transactions} 
