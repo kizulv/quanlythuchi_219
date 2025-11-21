@@ -298,20 +298,20 @@ export const Dashboard: React.FC = () => {
               <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
                   <tr>
-                    <th className="h-12 px-2 align-middle w-[60px] text-center" title="Tích chọn nếu đi 2 xe">
+                    <th className="h-12 px-2 align-middle w-[70px] text-center" title="Tích chọn nếu đi 2 xe">
                        Đi 2 xe
                     </th>
-                    <th className="h-12 px-2 align-middle w-[100px] text-center">Ngày</th>
-                    <th className="h-12 px-2 align-middle text-right w-[90px]">Tổng thu</th>
-                    <th className="h-12 px-2 align-middle text-right w-[90px]">Chi chung</th>
-                    <th className="h-12 px-2 align-middle text-right font-bold w-[90px]">Tổng dư</th>
-                    <th className="h-12 px-2 align-middle text-right font-bold w-[90px]">Dư chia</th>
-                    <th className="h-12 px-2 align-middle text-right w-[90px]">Chi riêng</th>
-                    <th className="h-12 px-2 align-middle text-right font-bold w-[90px]">Dư còn lại</th>
-                    <th className="h-12 px-2 align-middle text-center w-[70px]"></th>
+                    <th className="h-12 px-2 align-middle w-[110px] text-center">Ngày</th>
+                    <th className="h-12 px-2 align-middle text-right w-[100px]">Tổng thu</th>
+                    <th className="h-12 px-2 align-middle text-right w-[100px]">Chi chung</th>
+                    <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Tổng dư</th>
+                    <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư chia</th>
+                    <th className="h-12 px-2 align-middle text-right w-[100px]">Chi riêng</th>
+                    <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư còn lại</th>
+                    <th className="h-12 px-2 align-middle text-center w-[90px]"></th>
                     <th className="h-12 px-4 align-middle">Ghi chú</th>
                     <th className="h-12 px-2 align-middle text-right w-[140px]">Trạng thái</th>
-                    <th className="h-12 px-2 align-middle w-[40px]"></th>
+                    <th className="h-12 px-2 align-middle w-[60px]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
