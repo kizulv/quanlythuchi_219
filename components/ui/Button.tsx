@@ -24,9 +24,9 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const sizes = {
-    sm: "h-8 rounded-md px-3 text-xs",
-    md: "h-9 px-4 py-2 text-sm",
-    lg: "h-10 rounded-md px-8",
+    sm: "h-9 rounded-md px-3 text-sm",
+    md: "h-11 px-5 py-2 text-base", // Increased default size
+    lg: "h-12 rounded-md px-8 text-lg",
   };
 
   return (
