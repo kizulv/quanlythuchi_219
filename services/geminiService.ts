@@ -2,16 +2,10 @@ import { GoogleGenAI } from "@google/genai";
 import { Transaction } from "../types";
 
 // Initialize the Gemini API client
-// Note: In a real app, ensure process.env.API_KEY is set. 
-// This code assumes the environment is set up correctly as per instructions.
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeFinancialData = async (transactions: Transaction[]): Promise<string> => {
-  if (!apiKey) {
-    return "Vui lòng cấu hình API KEY để sử dụng tính năng phân tích AI.";
-  }
-
   try {
     // Prepare a summary of data for the AI
     const dataSummary = transactions.map(t => 
