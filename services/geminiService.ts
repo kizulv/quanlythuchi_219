@@ -1,62 +1,29 @@
 import { GoogleGenAI } from "@google/genai";
 import { Transaction } from "../types";
 
-// Helper to safely get API Key in various environments (Vite, Browser, Node)
-const getApiKey = () => {
-  try {
-    // Check import.meta.env for Vite
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-        return import.meta.env.VITE_GEMINI_API_KEY;
-    }
-    // Check process.env (standard Node/Polyfilled)
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
-    }
-    // Fallback to window.process if strictly in browser
-    if (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY) {
-      return (window as any).process.env.API_KEY;
-    }
-  } catch (e) {
-    console.warn("Could not retrieve API Key from environment.");
-  }
-  return '';
-};
-
-const apiKey = getApiKey();
-
-// Initialize AI only if key is present
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// Initialize the Gemini API client
+// Note: In a real app, ensure process.env.API_KEY is set. 
+// This code assumes the environment is set up correctly as per instructions.
+const apiKey = process.env.API_KEY || '';
+const ai = new GoogleGenAI({ apiKey });
 
 export const analyzeFinancialData = async (transactions: Transaction[]): Promise<string> => {
-  if (!ai || !apiKey) {
-    return "⚠️ Tính năng AI chưa được kích hoạt. Vui lòng cấu hình API KEY trong biến môi trường để sử dụng phân tích thông minh.";
+  if (!apiKey) {
+    return "Vui lòng cấu hình API KEY để sử dụng tính năng phân tích AI.";
   }
 
   try {
-    const totalRevenue = transactions.reduce((sum, t) => sum + t.revenue, 0);
-    const totalProfit = transactions.reduce((sum, t) => sum + t.remainingBalance, 0);
-    
-    // Summarize data to reduce token usage
+    // Prepare a summary of data for the AI
     const dataSummary = transactions.map(t => 
-      `Ngày ${t.date}: Thu ${t.revenue}, Lãi ${t.remainingBalance}, Ghi chú: ${t.note || 'Không'}`
+      `Ngày: ${t.date}, Thu: ${t.revenue}, Chi chung: ${t.sharedExpense}, Chi riêng: ${t.privateExpense}, Ghi chú: ${t.note}`
     ).join('\n');
 
     const prompt = `
-      Bạn là trợ lý tài chính cho nhà xe "BusManager Pro".
+      Dưới đây là dữ liệu thu chi của một xe khách trong tháng. 
+      Hãy phân tích ngắn gọn (dưới 100 từ) về tình hình kinh doanh, chỉ ra các khoản chi bất thường nếu có và đưa ra lời khuyên.
       
-      TỔNG QUAN THÁNG:
-      - Tổng thu: ${new Intl.NumberFormat('vi-VN').format(totalRevenue)} nghìn đồng
-      - Tổng thực nhận: ${new Intl.NumberFormat('vi-VN').format(totalProfit)} nghìn đồng
-      
-      CHI TIẾT GIAO DỊCH:
+      Dữ liệu:
       ${dataSummary}
-      
-      YÊU CẦU:
-      1. Nhận xét ngắn gọn (3-4 câu) về hiệu quả kinh doanh tháng này.
-      2. Chỉ ra ngày có doanh thu cao nhất và thấp nhất.
-      3. Cảnh báo các khoản chi bất thường nếu có.
-      
-      Trả lời bằng tiếng Việt, văn phong chuyên nghiệp, súc tích.
     `;
 
     const response = await ai.models.generateContent({
@@ -67,6 +34,6 @@ export const analyzeFinancialData = async (transactions: Transaction[]): Promise
     return response.text || "Không thể tạo phân tích tại thời điểm này.";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "Đã có lỗi xảy ra khi kết nối với Gemini AI. Vui lòng thử lại sau.";
+    return "Đã có lỗi xảy ra khi kết nối với Gemini AI.";
   }
 };
