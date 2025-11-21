@@ -33,6 +33,7 @@ export interface Transaction {
   details: string;
   isShared: boolean;
   breakdown?: TransactionBreakdown;
+  imageUrl?: string; // Link ảnh sổ sách
 }
 
 export interface DashboardStats {

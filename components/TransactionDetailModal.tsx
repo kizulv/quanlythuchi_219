@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
-import { X, Calculator, Check, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calculator, Check, Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
 import { Transaction, TransactionBreakdown } from '../types';
 import { Button } from './ui/Button';
+import { processAndUploadImage } from '../services/imageService';
 
 interface TransactionDetailModalProps {
   transaction: Transaction;
@@ -33,11 +34,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 }) => {
   const [breakdown, setBreakdown] = useState<TransactionBreakdown>(defaultBreakdown);
   const [note, setNote] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     if (transaction) {
       setBreakdown(transaction.breakdown || defaultBreakdown);
       setNote(transaction.note);
+      setImageUrl(transaction.imageUrl);
     }
   }, [transaction]);
 
@@ -67,6 +72,27 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     setBreakdown(prev => ({ ...prev, isShared: e.target.checked }));
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setIsUploading(true);
+      try {
+        // Gọi service xử lý ảnh
+        const processedUrl = await processAndUploadImage(file, transaction.date);
+        setImageUrl(processedUrl);
+      } catch (error) {
+        console.error("Upload failed:", error);
+        alert("Có lỗi khi tải ảnh lên. Vui lòng thử lại.");
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const triggerUpload = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleSave = () => {
     const updated: Transaction = {
       ...transaction,
@@ -77,7 +103,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       sharedExpense: totalExpense,
       totalBalance: totalBalance,
       splitBalance: splitBalance,
-      remainingBalance: remainingBalance
+      remainingBalance: remainingBalance,
+      imageUrl: imageUrl // Save the image URL
     };
     onSave(updated);
   };
@@ -87,22 +114,59 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden animate-fade-in">
         
         {/* Left Side: Image Viewer */}
-        <div className="w-full md:w-1/2 bg-slate-900 relative flex flex-col">
-          <div className="absolute top-4 left-4 text-white font-semibold z-10">
+        <div className="w-full md:w-1/2 bg-slate-900 relative flex flex-col group">
+          <div className="absolute top-4 left-4 text-white font-semibold z-10 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">
             {transaction.date}
           </div>
-          <div className="flex-1 flex items-center justify-center p-4">
-            {/* Placeholder for the actual image */}
-            <div className="relative w-full h-full bg-slate-800 rounded-lg overflow-hidden flex flex-col items-center justify-center text-slate-500 border border-slate-700">
-              <ImageIcon size={64} className="mb-4 opacity-50" />
-              <p className="text-sm">Hình ảnh sổ sách ghi chép</p>
-              <p className="text-xs mt-2 opacity-70">(Ảnh demo: {transaction.date})</p>
-              
-              {/* Simulated notebook lines/content for effect */}
-              <div className="absolute inset-0 opacity-10 pointer-events-none" 
-                   style={{backgroundImage: 'linear-gradient(#fff 1px, transparent 1px)', backgroundSize: '100% 2rem'}}>
+          
+          <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+            {imageUrl ? (
+              <img 
+                src={imageUrl} 
+                alt="Sổ ghi chép" 
+                className="w-full h-full object-contain rounded-lg shadow-2xl"
+              />
+            ) : (
+              /* Placeholder for the actual image */
+              <div className="relative w-full h-full bg-slate-900 rounded-lg overflow-hidden flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700">
+                <ImageIcon size={64} className="mb-4 opacity-50" />
+                <p className="text-sm font-medium">Chưa có hình ảnh sổ sách</p>
+                <p className="text-xs mt-2 opacity-70">Upload ảnh sổ viết tay để đối chiếu</p>
+                
+                {/* Simulated notebook lines/content for effect */}
+                <div className="absolute inset-0 opacity-5 pointer-events-none" 
+                     style={{backgroundImage: 'linear-gradient(#fff 1px, transparent 1px)', backgroundSize: '100% 2rem'}}>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Loading Overlay */}
+            {isUploading && (
+              <div className="absolute inset-0 bg-black/60 z-20 flex flex-col items-center justify-center text-white">
+                <Loader2 size={40} className="animate-spin mb-2" />
+                <span className="text-sm font-medium">Đang xử lý & nén ảnh...</span>
+              </div>
+            )}
+          </div>
+
+          {/* Upload Controls */}
+          <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3 z-10 px-4">
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/jpeg,image/png,image/jpg"
+              className="hidden"
+            />
+            <Button 
+              variant="primary" 
+              className="shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0"
+              onClick={triggerUpload}
+              disabled={isUploading}
+            >
+              <Upload size={18} className="mr-2" />
+              {imageUrl ? "Thay ảnh khác" : "Tải ảnh lên"}
+            </Button>
           </div>
         </div>
 
