@@ -5,15 +5,36 @@ export enum TransactionStatus {
   AI_GENERATED = 'AI_GENERATED'
 }
 
+export interface OtherRevenueItem {
+  id: string;
+  description: string;
+  amount: number;
+}
+
+export interface OtherExpenseItem {
+  id: string;
+  description: string;
+  amount: number;
+}
+
+export interface PrivateExpenseItem {
+  id: string;
+  description: string;
+  amount: number;
+}
+
 export interface TransactionBreakdown {
   revenueDown: number;
   revenueUp: number;
   revenueOther: number;
+  otherRevenueItems?: OtherRevenueItem[];
   expenseFuel: number;
   expenseFixed: number;
   expensePolice: number;
   expenseRepair: number;
   expenseOther: number;
+  otherExpenseItems?: OtherExpenseItem[];
+  privateExpenseItems?: PrivateExpenseItem[]; // Thêm trường này
   isShared: boolean;
   busId: string;
   partnerBusId: string;

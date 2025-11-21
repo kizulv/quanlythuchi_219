@@ -1,15 +1,20 @@
-
 <!DOCTYPE html>
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>BusManager Pro - Quản lý thu chi</title>
+    <title>BusManager Pro - Quản lý thu chi xe khách</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
+      // Robust Polyfill for process.env to prevent crashes in browser environments
+      window.process = window.process || {};
+      window.process.env = window.process.env || {};
+      window.process.env.NODE_ENV = window.process.env.NODE_ENV || 'development';
+      window.process.env.API_KEY = window.process.env.API_KEY || ''; // Will be populated by build tool or runtime
+
       tailwind.config = {
         theme: {
           extend: {
@@ -17,38 +22,21 @@
               sans: ['Inter', 'sans-serif'],
             },
             colors: {
-              border: "hsl(var(--border))",
-              input: "hsl(var(--input))",
-              ring: "hsl(var(--ring))",
-              background: "hsl(var(--background))",
-              foreground: "hsl(var(--foreground))",
               primary: {
-                DEFAULT: "#0f172a",
+                DEFAULT: "#0f172a", // Slate 900
                 foreground: "#f8fafc",
               },
               secondary: {
-                DEFAULT: "#f1f5f9",
+                DEFAULT: "#f1f5f9", // Slate 100
+                foreground: "#0f172a",
+              },
+              accent: {
+                DEFAULT: "#e2e8f0", // Slate 200
                 foreground: "#0f172a",
               },
               destructive: {
-                DEFAULT: "hsl(var(--destructive))",
-                foreground: "hsl(var(--destructive-foreground))",
-              },
-              muted: {
-                DEFAULT: "#f1f5f9",
-                foreground: "#64748b",
-              },
-              accent: {
-                DEFAULT: "#f1f5f9",
-                foreground: "#0f172a",
-              },
-              popover: {
-                DEFAULT: "hsl(var(--popover))",
-                foreground: "hsl(var(--popover-foreground))",
-              },
-              card: {
-                DEFAULT: "#ffffff",
-                foreground: "#020617",
+                DEFAULT: "#ef4444",
+                foreground: "#ffffff",
               },
             },
           },
@@ -59,22 +47,43 @@
       body {
         background-color: #f8fafc;
         color: #0f172a;
+        -webkit-font-smoothing: antialiased;
       }
       /* Custom scrollbar for cleaner look */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: #cbd5e1;
-        border-radius: 4px;
+        border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
       }
+      .animate-in {
+        animation-duration: 0.2s;
+        animation-timing-function: ease-out;
+        animation-fill-mode: both;
+      }
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slide-in-from-top-4 {
+        from { transform: translateY(-1rem); }
+        to { transform: translateY(0); }
+      }
+      @keyframes zoom-in-95 {
+        from { transform: scale(0.95); }
+        to { transform: scale(1); }
+      }
+      .fade-in { animation-name: fade-in; }
+      .slide-in-from-top-4 { animation-name: slide-in-from-top-4; }
+      .zoom-in-95 { animation-name: zoom-in-95; }
     </style>
 <script type="importmap">
 {
@@ -90,7 +99,9 @@
     "fs/": "https://aistudiocdn.com/fs@^0.0.1-security/",
     "http": "https://aistudiocdn.com/http@^0.0.1-security",
     "vite": "https://aistudiocdn.com/vite@^7.2.4",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "url": "https://aistudiocdn.com/url@^0.11.4",
+    "buffer": "https://aistudiocdn.com/buffer@^6.0.3"
   }
 }
 </script>

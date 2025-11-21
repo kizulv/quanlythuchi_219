@@ -1,3 +1,4 @@
+
 // Images are uploaded to a small local save server which writes into `public/images/reports`
 // The save server accepts POST /save-image with JSON { baseFileName, dataUrl }
 
@@ -64,6 +65,7 @@ export async function getProcessedDataUrl(file: File): Promise<string> {
 
 /**
  * Xử lý upload ảnh: resize -> upload -> trả về URL server (cache-busted)
+ * Nếu upload thất bại (do không có server backend), trả về Data URL để hiển thị preview.
  */
 export const processAndUploadImage = async (
   file: File,
@@ -72,6 +74,10 @@ export const processAndUploadImage = async (
   try {
     const processedDataUrl = await processImageToDataUrl(file);
 
+    // In a pure client-side demo or static export, the save server might not be running.
+    // We attempt to upload, but if it fails, we return the base64 data URL 
+    // so the UI still updates immediately for the user.
+    
     const [day, month, year] = dateStr.split("/");
     const baseFileName = `${year}-${month}-${day}.jpg`;
 
@@ -92,17 +98,18 @@ export const processAndUploadImage = async (
           return `${serverUrl}${sep}t=${Date.now()}`;
         }
       } else {
-        console.error("[Upload] Server responded with error", resp.status);
-        const text = await resp.text();
-        console.error(text);
+        console.warn("[Upload] Server responded with error, falling back to local preview.");
       }
     } catch (err) {
-      console.error("[Upload] Failed to upload image to save server", err);
+      // Silent catch for demo/offline mode
+      console.warn("[Upload] Save server unreachable, falling back to local preview.");
     }
 
-    // Fallback: return the processed data URL so UI can show preview
+    // Fallback: return the processed data URL so UI can show preview immediately
     return processedDataUrl;
   } catch (err) {
-    throw err;
+    console.error("Image processing failed", err);
+    // Even if processing fails, try to return original file as data url
+    return URL.createObjectURL(file);
   }
 };
