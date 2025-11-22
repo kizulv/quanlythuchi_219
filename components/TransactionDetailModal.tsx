@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus } from "../types";
 import { Button } from "./ui/Button";
+import { AlertDialog } from "./ui/AlertDialog";
 import {
   processAndUploadImage,
   getProcessedDataUrl,
@@ -70,6 +71,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
   // Track the auto-generated note part when the modal opens to avoid duplication on save
   const [initialAutoNote, setInitialAutoNote] = useState("");
+  
+  // Alert Dialog State
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -294,10 +298,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     fileInputRef.current?.click();
   };
 
-  const handleDelete = () => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.")) {
-      onDelete(transaction.id);
-    }
+  const handleDeleteClick = () => {
+    setShowDeleteAlert(true);
+  };
+
+  const handleConfirmDelete = () => {
+    onDelete(transaction.id);
+    setShowDeleteAlert(false);
   };
 
   const handleSave = () => {
@@ -385,430 +392,443 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const dynamicGridClass = "grid grid-cols-[28px_1fr_130px] gap-2 items-center";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 md:p-4 font-sans">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Left Side: Image Viewer */}
-        <div className="hidden md:flex md:w-6/12 bg-slate-900 relative flex-col group border-r border-slate-800">
-          <div className="absolute top-4 left-4 text-white font-semibold z-10 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md border border-white/10 text-sm">
-            {date}
-          </div>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 md:p-4 font-sans">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          {/* Left Side: Image Viewer */}
+          <div className="hidden md:flex md:w-6/12 bg-slate-900 relative flex-col group border-r border-slate-800">
+            <div className="absolute top-4 left-4 text-white font-semibold z-10 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md border border-white/10 text-sm">
+              {date}
+            </div>
 
-          <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt="Sổ ghi chép"
-                className="w-full h-full object-contain rounded-lg shadow-2xl"
-              />
-            ) : (
-              <div className="relative w-full h-full bg-slate-900 rounded-lg overflow-hidden flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-800">
-                <ImageIcon size={48} className="mb-3 opacity-50" />
-                <p className="text-sm font-medium">Chưa có hình ảnh</p>
-              </div>
-            )}
-
-            {isUploading && (
-              <div className="absolute inset-0 bg-black/70 z-20 flex flex-col items-center justify-center text-white backdrop-blur-sm">
-                <Loader2 size={32} className="animate-spin mb-2" />
-                <span className="text-xs font-medium">Đang xử lý...</span>
-              </div>
-            )}
-          </div>
-
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept="image/jpeg,image/png,image/jpg"
-              className="hidden"
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              className="shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium h-9"
-              onClick={triggerUpload}
-              disabled={isUploading}
-            >
-              <Upload size={16} className="mr-2" />
-              {imageUrl ? "Thay ảnh" : "Tải ảnh"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Right Side: Form - COMPACT LAYOUT */}
-        <div className="w-full md:w-6/12 bg-white flex flex-col h-full text-slate-900">
-          {/* Header */}
-          <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-            <div>
-              <div className="flex items-center gap-2">
-                 <h2 className="font-bold text-base text-slate-900 leading-none">
-                    {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới đối soát'}
-                 </h2>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                {/* Editable Date Field */}
-                <input 
-                  type="text" 
-                  value={date} 
-                  onChange={(e) => setDate(e.target.value)}
-                  className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-medium border-none focus:ring-1 focus:ring-primary w-24 text-center"
-                  placeholder="DD/MM/YYYY"
+            <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt="Sổ ghi chép"
+                  className="w-full h-full object-contain rounded-lg shadow-2xl"
                 />
-                <span>•</span>
-                <span>Đơn vị: Nghìn đồng</span>
+              ) : (
+                <div className="relative w-full h-full bg-slate-900 rounded-lg overflow-hidden flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-800">
+                  <ImageIcon size={48} className="mb-3 opacity-50" />
+                  <p className="text-sm font-medium">Chưa có hình ảnh</p>
+                </div>
+              )}
+
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/70 z-20 flex flex-col items-center justify-center text-white backdrop-blur-sm">
+                  <Loader2 size={32} className="animate-spin mb-2" />
+                  <span className="text-xs font-medium">Đang xử lý...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/jpeg,image/png,image/jpg"
+                className="hidden"
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                className="shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium h-9"
+                onClick={triggerUpload}
+                disabled={isUploading}
+              >
+                <Upload size={16} className="mr-2" />
+                {imageUrl ? "Thay ảnh" : "Tải ảnh"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Right Side: Form - COMPACT LAYOUT */}
+          <div className="w-full md:w-6/12 bg-white flex flex-col h-full text-slate-900">
+            {/* Header */}
+            <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+              <div>
+                <div className="flex items-center gap-2">
+                   <h2 className="font-bold text-base text-slate-900 leading-none">
+                      {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới đối soát'}
+                   </h2>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                  {/* Editable Date Field */}
+                  <input 
+                    type="text" 
+                    value={date} 
+                    onChange={(e) => setDate(e.target.value)}
+                    className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-medium border-none focus:ring-1 focus:ring-primary w-24 text-center"
+                    placeholder="DD/MM/YYYY"
+                  />
+                  <span>•</span>
+                  <span>Đơn vị: Nghìn đồng</span>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body - Reduced padding and spacing */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+              
+              {/* CONFIG SECTION */}
+              <section className="bg-slate-50/80 rounded-lg border border-slate-200 p-3 space-y-2 shadow-sm">
+                 <div className="flex items-center justify-between">
+                    <label className="flex items-center space-x-2 cursor-pointer group select-none">
+                       <input 
+                          type="checkbox" 
+                          checked={breakdown.isShared} 
+                          onChange={handleCheckboxChange}
+                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-900"
+                       />
+                       <span className="text-sm font-semibold text-slate-700">
+                          Chế độ đi 2 xe (Ăn chia)
+                       </span>
+                    </label>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe chính</label>
+                       <select 
+                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
+                          value={breakdown.busId}
+                          onChange={(e) => setBreakdown({ ...breakdown, busId: e.target.value })}
+                       >
+                          <option value="25F-002.19">25F-002.19</option>
+                          <option value="29B-123.45">29B-123.45</option>
+                       </select>
+                    </div>
+                    
+                    <div className={`space-y-1 transition-all duration-200 ${!breakdown.isShared ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
+                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe đối tác</label>
+                       <select 
+                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
+                          value={breakdown.partnerBusId}
+                          onChange={(e) => setBreakdown({ ...breakdown, partnerBusId: e.target.value })}
+                       >
+                           <option value="25F-000.19">25F-000.19</option>
+                           <option value="15B-999.99">15B-999.99</option>
+                       </select>
+                    </div>
+                 </div>
+              </section>
+
+              {/* REVENUE SECTION */}
+              <section className="space-y-1.5">
+                 {/* Header */}
+                 <div className={`${gridClass} pb-1 border-b border-slate-100`}>
+                    <div className="flex items-center gap-1.5">
+                       <div className="w-1 h-3 bg-green-500 rounded-full"></div>
+                       <h3 className="font-semibold text-slate-800 text-sm">Tổng Thu</h3>
+                    </div>
+                    <div className="w-full h-8 rounded border border-green-200 bg-green-50/50 px-2 flex items-center justify-end">
+                       <span className="text-sm font-bold text-green-600">{formatForDisplay(totalRevenue)}</span>
+                    </div>
+                 </div>
+                 
+                 <div className="space-y-1.5">
+                    <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} displayFormatter={formatForDisplay} />
+                    <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} displayFormatter={formatForDisplay} />
+                    
+                    {/* Dynamic Revenue Items */}
+                    <div className="space-y-1.5">
+                       {otherRevenues.map((item) => (
+                          <div key={item.id} className={dynamicGridClass}>
+                             <button 
+                                onClick={() => removeOtherRevenueItem(item.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
+                                title="Xóa"
+                             >
+                                <Trash2 size={14} />
+                             </button>
+                             <input
+                                type="text"
+                                placeholder="Tên khoản thu..."
+                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
+                                value={item.description}
+                                onChange={(e) => updateOtherRevenueItem(item.id, 'description', e.target.value)}
+                             />
+                             <input
+                                type="text"
+                                placeholder="0"
+                                className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                value={formatForDisplay(item.amount)}
+                                onChange={(e) => updateOtherRevenueItem(item.id, 'amount', parseInput(e.target.value))}
+                             />
+                          </div>
+                       ))}
+                    </div>
+
+                    <div className="pt-0.5">
+                      <button 
+                         onClick={addOtherRevenueItem}
+                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
+                      >
+                         <Plus size={14} />
+                         Thêm khoản thu
+                      </button>
+                    </div>
+                 </div>
+              </section>
+
+              {/* EXPENSE SECTION */}
+              <section className="space-y-1.5 pt-1">
+                 {/* Header */}
+                 <div className={`${gridClass} pb-1 border-b border-slate-100`}>
+                    <div className="flex items-center gap-1.5">
+                       <div className="w-1 h-3 bg-red-500 rounded-full"></div>
+                       <h3 className="font-semibold text-slate-800 text-sm">Tổng Chi</h3>
+                    </div>
+                    <input
+                       type="text"
+                       className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
+                       value={formatForDisplay(totalExpenseInput)}
+                       onChange={(e) => handleTotalExpenseChange(e.target.value)}
+                    />
+                 </div>
+                 
+                 <div className="space-y-1.5">
+                    <InputRow 
+                       label="Dầu" 
+                       value={breakdown.expenseFuel} 
+                       onChange={(v) => handleExpenseComponentChange("expenseFuel", v)} 
+                       displayFormatter={formatForDisplay} 
+                    />
+                    
+                    {/* Fixed Expense */}
+                    <div className={`${gridClass} group`}>
+                      <div className="flex items-center gap-2">
+                         <span className="text-sm text-slate-600 group-hover:text-slate-900 truncate">Chi cố định</span>
+                         <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">Auto</span>
+                      </div>
+                      <div className="relative w-full">
+                         <input
+                           type="text"
+                           disabled
+                           className="w-full text-right h-8 rounded border border-slate-100 bg-slate-100 px-2 text-sm font-medium text-slate-500 cursor-not-allowed"
+                           value={formatForDisplay(breakdown.expenseFixed)}
+                           readOnly
+                         />
+                         <Lock size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                      </div>
+                    </div>
+
+                    <InputRow 
+                       label="Chi luật (CA)" 
+                       value={breakdown.expensePolice} 
+                       onChange={(v) => handleExpenseComponentChange("expensePolice", v)} 
+                       displayFormatter={formatForDisplay} 
+                    />
+                    <InputRow 
+                       label="Sửa chữa" 
+                       value={breakdown.expenseRepair} 
+                       onChange={(v) => handleExpenseComponentChange("expenseRepair", v)} 
+                       displayFormatter={formatForDisplay} 
+                    />
+                    
+                    {/* Dynamic Expense Items */}
+                    <div className="space-y-1.5">
+                       {otherExpenses.map((item) => (
+                          <div key={item.id} className={dynamicGridClass}>
+                             <button 
+                                onClick={() => removeOtherExpenseItem(item.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
+                                title="Xóa"
+                             >
+                                <Trash2 size={14} />
+                             </button>
+                             <input
+                                type="text"
+                                placeholder="Tên khoản chi..."
+                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
+                                value={item.description}
+                                onChange={(e) => updateOtherExpenseItem(item.id, 'description', e.target.value)}
+                             />
+                             <input
+                                type="text"
+                                placeholder="0"
+                                className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                value={formatForDisplay(item.amount)}
+                                onChange={(e) => updateOtherExpenseItem(item.id, 'amount', parseInput(e.target.value))}
+                             />
+                          </div>
+                       ))}
+                    </div>
+
+                    <div className="pt-0.5">
+                      <button 
+                         onClick={addOtherExpenseItem}
+                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
+                      >
+                         <Plus size={14} />
+                         Thêm khoản chi
+                      </button>
+                    </div>
+                 </div>
+              </section>
+
+              {/* SUMMARY SECTION */}
+              <section className="bg-slate-50 rounded-lg border border-slate-200 p-3 shadow-sm">
+                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tổng kết</h3>
+                 <div className="space-y-2">
+                    <div className={gridClass}>
+                       <span className="text-sm font-medium text-slate-600">Tổng dư (Thu-Chi)</span>
+                       {isManualBalanceMode ? (
+                          <input
+                             type="text"
+                             placeholder="Số dư..."
+                             className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+                             value={formatForDisplay(customTotalBalance)}
+                             onChange={(e) => setCustomTotalBalance(parseInput(e.target.value))}
+                          />
+                       ) : (
+                          <div className="w-full h-8 flex items-center justify-end px-2">
+                              <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalBalance)}</span>
+                          </div>
+                       )}
+                    </div>
+
+                    <div className={gridClass}>
+                       <span className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                          Dư sau chia
+                          <span className="text-[9px] px-1 py-0.5 bg-slate-200 rounded text-slate-500 font-bold">
+                             {breakdown.isShared ? '100% - Chia tổng thu' : '50% - Ăn chia'}
+                          </span>
+                       </span>
+                       <div className="w-full h-8 flex items-center justify-end px-2">
+                          <span className="font-bold text-sm text-slate-800">{formatForDisplay(splitBalance)}</span>
+                       </div>
+                    </div>
+                    
+                    {!breakdown.isShared && <div className="h-px bg-slate-200 my-1 col-span-2"></div>}
+
+                    {/* Dynamic Private Expenses Logic */}
+                    {!breakdown.isShared && (
+                      <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                         <div className={gridClass}>
+                            <span className="text-sm font-medium text-slate-600">Trừ chi riêng</span>
+                            <div className="w-full h-8 flex items-center justify-end px-2">
+                              <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalPrivateExpense)}</span>
+                            </div>
+                         </div>
+                         
+                         <div className="space-y-1.5 pt-0.5">
+                            {privateExpenses.map((item) => (
+                               <div key={item.id} className={dynamicGridClass}>
+                                  <button 
+                                     onClick={() => removePrivateExpenseItem(item.id)}
+                                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
+                                     title="Xóa"
+                                  >
+                                     <Trash2 size={14} />
+                                  </button>
+                                  <input
+                                     type="text"
+                                     placeholder="Khoản chi riêng..."
+                                     className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
+                                     value={item.description}
+                                     onChange={(e) => updatePrivateExpenseItem(item.id, 'description', e.target.value)}
+                                  />
+                                  <input
+                                     type="text"
+                                     placeholder="0"
+                                     className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                     value={formatForDisplay(item.amount)}
+                                     onChange={(e) => updatePrivateExpenseItem(item.id, 'amount', parseInput(e.target.value))}
+                                  />
+                               </div>
+                            ))}
+                         </div>
+
+                         <div className="pt-0.5">
+                            <button 
+                               onClick={addPrivateExpenseItem}
+                               className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
+                            >
+                               <Plus size={14} />
+                               Thêm chi riêng
+                            </button>
+                         </div>
+                      </div>
+                    )}
+
+                    <div className="h-px bg-slate-200 my-1 col-span-2"></div>
+
+                    <div className={`${gridClass} pt-0.5`}>
+                       <span className="text-sm font-bold text-slate-900">Dư thực nhận</span>
+                       <div className="w-full h-8 flex items-center justify-end px-2">
+                          <span className="text-xl font-bold text-primary">{formatForDisplay(remainingBalance)}</span>
+                       </div>
+                    </div>
+                 </div>
+              </section>
+
+              {/* NOTES SECTION */}
+              <div className="space-y-1">
+                 <label className="text-xs font-semibold text-slate-600">Ghi chú thêm</label>
+                 <textarea
+                    className="flex min-h-[60px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 resize-none shadow-sm"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Nhập ghi chú..."
+                 />
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
 
-          {/* Body - Reduced padding and spacing */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-            
-            {/* CONFIG SECTION */}
-            <section className="bg-slate-50/80 rounded-lg border border-slate-200 p-3 space-y-2 shadow-sm">
-               <div className="flex items-center justify-between">
-                  <label className="flex items-center space-x-2 cursor-pointer group select-none">
-                     <input 
-                        type="checkbox" 
-                        checked={breakdown.isShared} 
-                        onChange={handleCheckboxChange}
-                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-900"
-                     />
-                     <span className="text-sm font-semibold text-slate-700">
-                        Chế độ đi 2 xe (Ăn chia)
-                     </span>
-                  </label>
-               </div>
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-100 bg-white flex justify-between gap-3 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.03)]">
+               {transaction.id && (
+                  <Button
+                     variant="outline"
+                     className="border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700 h-10 px-3"
+                     onClick={handleDeleteClick}
+                     title="Xóa phiếu này"
+                  >
+                     <Trash2 size={16} className="mr-2" />
+                     Xóa
+                  </Button>
+               )}
                
-               <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe chính</label>
-                     <select 
-                        className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
-                        value={breakdown.busId}
-                        onChange={(e) => setBreakdown({ ...breakdown, busId: e.target.value })}
-                     >
-                        <option value="25F-002.19">25F-002.19</option>
-                        <option value="29B-123.45">29B-123.45</option>
-                     </select>
-                  </div>
-                  
-                  <div className={`space-y-1 transition-all duration-200 ${!breakdown.isShared ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
-                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe đối tác</label>
-                     <select 
-                        className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
-                        value={breakdown.partnerBusId}
-                        onChange={(e) => setBreakdown({ ...breakdown, partnerBusId: e.target.value })}
-                     >
-                         <option value="25F-000.19">25F-000.19</option>
-                         <option value="15B-999.99">15B-999.99</option>
-                     </select>
-                  </div>
+               <div className="flex gap-3 flex-1 justify-end">
+                  <Button
+                    variant="outline"
+                    className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-10 min-w-[100px]"
+                    onClick={onClose}
+                  >
+                    Đóng
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10 min-w-[120px]"
+                    onClick={handleSave}
+                  >
+                    Lưu thay đổi
+                  </Button>
                </div>
-            </section>
-
-            {/* REVENUE SECTION */}
-            <section className="space-y-1.5">
-               {/* Header */}
-               <div className={`${gridClass} pb-1 border-b border-slate-100`}>
-                  <div className="flex items-center gap-1.5">
-                     <div className="w-1 h-3 bg-green-500 rounded-full"></div>
-                     <h3 className="font-semibold text-slate-800 text-sm">Tổng Thu</h3>
-                  </div>
-                  <div className="w-full h-8 rounded border border-green-200 bg-green-50/50 px-2 flex items-center justify-end">
-                     <span className="text-sm font-bold text-green-600">{formatForDisplay(totalRevenue)}</span>
-                  </div>
-               </div>
-               
-               <div className="space-y-1.5">
-                  <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} displayFormatter={formatForDisplay} />
-                  <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} displayFormatter={formatForDisplay} />
-                  
-                  {/* Dynamic Revenue Items */}
-                  <div className="space-y-1.5">
-                     {otherRevenues.map((item) => (
-                        <div key={item.id} className={dynamicGridClass}>
-                           <button 
-                              onClick={() => removeOtherRevenueItem(item.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
-                              title="Xóa"
-                           >
-                              <Trash2 size={14} />
-                           </button>
-                           <input
-                              type="text"
-                              placeholder="Tên khoản thu..."
-                              className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
-                              value={item.description}
-                              onChange={(e) => updateOtherRevenueItem(item.id, 'description', e.target.value)}
-                           />
-                           <input
-                              type="text"
-                              placeholder="0"
-                              className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
-                              value={formatForDisplay(item.amount)}
-                              onChange={(e) => updateOtherRevenueItem(item.id, 'amount', parseInput(e.target.value))}
-                           />
-                        </div>
-                     ))}
-                  </div>
-
-                  <div className="pt-0.5">
-                    <button 
-                       onClick={addOtherRevenueItem}
-                       className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
-                    >
-                       <Plus size={14} />
-                       Thêm khoản thu
-                    </button>
-                  </div>
-               </div>
-            </section>
-
-            {/* EXPENSE SECTION */}
-            <section className="space-y-1.5 pt-1">
-               {/* Header */}
-               <div className={`${gridClass} pb-1 border-b border-slate-100`}>
-                  <div className="flex items-center gap-1.5">
-                     <div className="w-1 h-3 bg-red-500 rounded-full"></div>
-                     <h3 className="font-semibold text-slate-800 text-sm">Tổng Chi</h3>
-                  </div>
-                  <input
-                     type="text"
-                     className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
-                     value={formatForDisplay(totalExpenseInput)}
-                     onChange={(e) => handleTotalExpenseChange(e.target.value)}
-                  />
-               </div>
-               
-               <div className="space-y-1.5">
-                  <InputRow 
-                     label="Dầu" 
-                     value={breakdown.expenseFuel} 
-                     onChange={(v) => handleExpenseComponentChange("expenseFuel", v)} 
-                     displayFormatter={formatForDisplay} 
-                  />
-                  
-                  {/* Fixed Expense */}
-                  <div className={`${gridClass} group`}>
-                    <div className="flex items-center gap-2">
-                       <span className="text-sm text-slate-600 group-hover:text-slate-900 truncate">Chi cố định</span>
-                       <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">Auto</span>
-                    </div>
-                    <div className="relative w-full">
-                       <input
-                         type="text"
-                         disabled
-                         className="w-full text-right h-8 rounded border border-slate-100 bg-slate-100 px-2 text-sm font-medium text-slate-500 cursor-not-allowed"
-                         value={formatForDisplay(breakdown.expenseFixed)}
-                         readOnly
-                       />
-                       <Lock size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
-                    </div>
-                  </div>
-
-                  <InputRow 
-                     label="Chi luật (CA)" 
-                     value={breakdown.expensePolice} 
-                     onChange={(v) => handleExpenseComponentChange("expensePolice", v)} 
-                     displayFormatter={formatForDisplay} 
-                  />
-                  <InputRow 
-                     label="Sửa chữa" 
-                     value={breakdown.expenseRepair} 
-                     onChange={(v) => handleExpenseComponentChange("expenseRepair", v)} 
-                     displayFormatter={formatForDisplay} 
-                  />
-                  
-                  {/* Dynamic Expense Items */}
-                  <div className="space-y-1.5">
-                     {otherExpenses.map((item) => (
-                        <div key={item.id} className={dynamicGridClass}>
-                           <button 
-                              onClick={() => removeOtherExpenseItem(item.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
-                              title="Xóa"
-                           >
-                              <Trash2 size={14} />
-                           </button>
-                           <input
-                              type="text"
-                              placeholder="Tên khoản chi..."
-                              className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
-                              value={item.description}
-                              onChange={(e) => updateOtherExpenseItem(item.id, 'description', e.target.value)}
-                           />
-                           <input
-                              type="text"
-                              placeholder="0"
-                              className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
-                              value={formatForDisplay(item.amount)}
-                              onChange={(e) => updateOtherExpenseItem(item.id, 'amount', parseInput(e.target.value))}
-                           />
-                        </div>
-                     ))}
-                  </div>
-
-                  <div className="pt-0.5">
-                    <button 
-                       onClick={addOtherExpenseItem}
-                       className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
-                    >
-                       <Plus size={14} />
-                       Thêm khoản chi
-                    </button>
-                  </div>
-               </div>
-            </section>
-
-            {/* SUMMARY SECTION */}
-            <section className="bg-slate-50 rounded-lg border border-slate-200 p-3 shadow-sm">
-               <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tổng kết</h3>
-               <div className="space-y-2">
-                  <div className={gridClass}>
-                     <span className="text-sm font-medium text-slate-600">Tổng dư (Thu-Chi)</span>
-                     {isManualBalanceMode ? (
-                        <input
-                           type="text"
-                           placeholder="Số dư..."
-                           className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
-                           value={formatForDisplay(customTotalBalance)}
-                           onChange={(e) => setCustomTotalBalance(parseInput(e.target.value))}
-                        />
-                     ) : (
-                        <div className="w-full h-8 flex items-center justify-end px-2">
-                            <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalBalance)}</span>
-                        </div>
-                     )}
-                  </div>
-
-                  <div className={gridClass}>
-                     <span className="text-sm font-medium text-slate-600 flex items-center gap-2">
-                        Dư sau chia
-                        <span className="text-[9px] px-1 py-0.5 bg-slate-200 rounded text-slate-500 font-bold">
-                           {breakdown.isShared ? '100% - Chia tổng thu' : '50% - Ăn chia'}
-                        </span>
-                     </span>
-                     <div className="w-full h-8 flex items-center justify-end px-2">
-                        <span className="font-bold text-sm text-slate-800">{formatForDisplay(splitBalance)}</span>
-                     </div>
-                  </div>
-                  
-                  {!breakdown.isShared && <div className="h-px bg-slate-200 my-1 col-span-2"></div>}
-
-                  {/* Dynamic Private Expenses Logic */}
-                  {!breakdown.isShared && (
-                    <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                       <div className={gridClass}>
-                          <span className="text-sm font-medium text-slate-600">Trừ chi riêng</span>
-                          <div className="w-full h-8 flex items-center justify-end px-2">
-                            <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalPrivateExpense)}</span>
-                          </div>
-                       </div>
-                       
-                       <div className="space-y-1.5 pt-0.5">
-                          {privateExpenses.map((item) => (
-                             <div key={item.id} className={dynamicGridClass}>
-                                <button 
-                                   onClick={() => removePrivateExpenseItem(item.id)}
-                                   className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
-                                   title="Xóa"
-                                >
-                                   <Trash2 size={14} />
-                                </button>
-                                <input
-                                   type="text"
-                                   placeholder="Khoản chi riêng..."
-                                   className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
-                                   value={item.description}
-                                   onChange={(e) => updatePrivateExpenseItem(item.id, 'description', e.target.value)}
-                                />
-                                <input
-                                   type="text"
-                                   placeholder="0"
-                                   className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
-                                   value={formatForDisplay(item.amount)}
-                                   onChange={(e) => updatePrivateExpenseItem(item.id, 'amount', parseInput(e.target.value))}
-                                />
-                             </div>
-                          ))}
-                       </div>
-
-                       <div className="pt-0.5">
-                          <button 
-                             onClick={addPrivateExpenseItem}
-                             className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
-                          >
-                             <Plus size={14} />
-                             Thêm chi riêng
-                          </button>
-                       </div>
-                    </div>
-                  )}
-
-                  <div className="h-px bg-slate-200 my-1 col-span-2"></div>
-
-                  <div className={`${gridClass} pt-0.5`}>
-                     <span className="text-sm font-bold text-slate-900">Dư thực nhận</span>
-                     <div className="w-full h-8 flex items-center justify-end px-2">
-                        <span className="text-xl font-bold text-primary">{formatForDisplay(remainingBalance)}</span>
-                     </div>
-                  </div>
-               </div>
-            </section>
-
-            {/* NOTES SECTION */}
-            <div className="space-y-1">
-               <label className="text-xs font-semibold text-slate-600">Ghi chú thêm</label>
-               <textarea
-                  className="flex min-h-[60px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 resize-none shadow-sm"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Nhập ghi chú..."
-               />
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-slate-100 bg-white flex justify-between gap-3 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.03)]">
-             {transaction.id && (
-                <Button
-                   variant="outline"
-                   className="border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700 h-10 px-3"
-                   onClick={handleDelete}
-                   title="Xóa phiếu này"
-                >
-                   <Trash2 size={16} className="mr-2" />
-                   Xóa
-                </Button>
-             )}
-             
-             <div className="flex gap-3 flex-1 justify-end">
-                <Button
-                  variant="outline"
-                  className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-10 min-w-[100px]"
-                  onClick={onClose}
-                >
-                  Đóng
-                </Button>
-                <Button
-                  variant="primary"
-                  className="bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10 min-w-[120px]"
-                  onClick={handleSave}
-                >
-                  Lưu thay đổi
-                </Button>
-             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog 
+        isOpen={showDeleteAlert}
+        onClose={() => setShowDeleteAlert(false)}
+        onConfirm={handleConfirmDelete}
+        title="Bạn có chắc chắn muốn xóa?"
+        description="Hành động này không thể hoàn tác. Dữ liệu bản ghi sẽ bị xóa vĩnh viễn khỏi hệ thống."
+        confirmText="Xóa bản ghi"
+        variant="destructive"
+      />
+    </>
   );
 };
 
