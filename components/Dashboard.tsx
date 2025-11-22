@@ -128,8 +128,9 @@ export const Dashboard: React.FC = () => {
     // Create default empty transaction
     const today = new Date();
     const dayStr = today.getDate().toString().padStart(2, '0');
-    const monthStr = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-    const yearStr = currentDate.getFullYear();
+    // Use 'today' month/year, not the currently viewed dashboard month
+    const monthStr = (today.getMonth() + 1).toString().padStart(2, '0');
+    const yearStr = today.getFullYear();
     
     const newTransaction: Transaction = {
       id: '', // Empty ID signifies new
@@ -143,7 +144,7 @@ export const Dashboard: React.FC = () => {
       note: '',
       status: TransactionStatus.VERIFIED,
       details: '',
-      isShared: true,
+      isShared: false, // Default to NOT shared (1 xe)
       breakdown: {
         revenueDown: 0,
         revenueUp: 0,
@@ -153,7 +154,7 @@ export const Dashboard: React.FC = () => {
         expensePolice: 0,
         expenseRepair: 0,
         expenseOther: 0,
-        isShared: true,
+        isShared: false, // Default to NOT shared
         busId: "25F-002.19",
         partnerBusId: "25F-000.19"
       }
