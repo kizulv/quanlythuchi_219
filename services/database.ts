@@ -1,10 +1,8 @@
+
 import { Transaction } from '../types';
-import mockData from '../data/mockData.json';
+import { MOCK_DATABASE } from '../data/mockData';
 
 const DB_KEY = 'busmanager_db_v1';
-
-// Initialize mock data from JSON
-const MOCK_DATABASE = mockData as unknown as Transaction[];
 
 // Simulate MongoDB-like API
 export const db = {
@@ -29,6 +27,19 @@ export const db = {
     // Matches dates ending in /MM/YYYY (e.g., 02/11/2025)
     const suffix = `/${monthStr}/${year}`;
     return all.filter(t => t.date.endsWith(suffix));
+  },
+
+  search: async (query: string): Promise<Transaction[]> => {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const all = await db.getAll();
+    if (!query.trim()) return [];
+    
+    const lowerQuery = query.toLowerCase().trim();
+    return all.filter(t => 
+      (t.note && t.note.toLowerCase().includes(lowerQuery)) || 
+      (t.date && t.date.includes(query))
+    );
   },
 
   save: async (transaction: Transaction): Promise<void> => {

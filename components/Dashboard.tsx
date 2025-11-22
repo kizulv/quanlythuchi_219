@@ -42,31 +42,37 @@ export const Dashboard: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const month = currentDate.getMonth() + 1; // 1-12
-      const year = currentDate.getFullYear();
-      
-      // Calculate Previous Month
-      let prevMonth = month - 1;
-      let prevYear = year;
-      if (prevMonth === 0) {
-        prevMonth = 12;
-        prevYear = year - 1;
-      }
-
-      // Fetch from Database Service
-      const currentData = await db.getByMonth(month, year);
-      const prevData = await db.getByMonth(prevMonth, prevYear);
-
-      // Sort by date (assuming string format dd/MM/yyyy)
-      // To sort correctly, we need to parse the date
+      // Sort Helper: Sort by date
       const sortFn = (a: Transaction, b: Transaction) => {
         const [da, ma, ya] = a.date.split('/').map(Number);
         const [db, mb, yb] = b.date.split('/').map(Number);
         return new Date(ya, ma - 1, da).getTime() - new Date(yb, mb - 1, db).getTime();
       };
 
-      setTransactions(currentData.sort(sortFn));
-      setPrevTransactions(prevData);
+      // Logic: If searching, search GLOBAL. If not, get BY MONTH.
+      if (searchTerm.trim()) {
+        const searchResults = await db.search(searchTerm);
+        setTransactions(searchResults.sort(sortFn));
+        // We don't change prevTransactions here as comparison charts don't make sense in global search
+      } else {
+        const month = currentDate.getMonth() + 1; // 1-12
+        const year = currentDate.getFullYear();
+        
+        // Calculate Previous Month
+        let prevMonth = month - 1;
+        let prevYear = year;
+        if (prevMonth === 0) {
+          prevMonth = 12;
+          prevYear = year - 1;
+        }
+
+        // Fetch from Database Service
+        const currentData = await db.getByMonth(month, year);
+        const prevData = await db.getByMonth(prevMonth, prevYear);
+
+        setTransactions(currentData.sort(sortFn));
+        setPrevTransactions(prevData);
+      }
     } catch (error) {
       console.error("Failed to fetch data", error);
     } finally {
@@ -75,24 +81,23 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [currentDate]);
+    // Debounce search to avoid too many requests while typing
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 400);
 
-  // Filter transactions based on search term (Only for Table display)
-  const filteredTransactions = useMemo(() => {
-    const lowerTerm = searchTerm.toLowerCase();
-    return transactions.filter(t => 
-      t.note.toLowerCase().includes(lowerTerm) || 
-      t.date.includes(searchTerm)
-    );
-  }, [transactions, searchTerm]);
+    return () => clearTimeout(timer);
+  }, [currentDate, searchTerm]);
 
-  // Calculate Statistics based on FULL data (Not filtered)
+  // Since fetching logic handles filtering, we just pass transactions through
+  const filteredTransactions = transactions;
+
+  // Calculate Statistics based on CURRENT view data
   const stats = useMemo(() => {
     const totalRemaining = transactions.reduce((acc, t) => acc + t.remainingBalance, 0);
     return {
       totalRemaining,
-      splitByFour: totalRemaining / 4
+      splitByFour: totalRemaining / 4 // Or logic for split
     };
   }, [transactions]);
 
@@ -105,8 +110,10 @@ export const Dashboard: React.FC = () => {
     };
   }, [prevTransactions]);
 
-  const diffTotal = stats.totalRemaining - prevStats.totalRemaining;
-  const diffSplit = stats.splitByFour - prevStats.splitByFour;
+  // Only show difference if NOT searching (comparing month to month)
+  const isSearching = searchTerm.trim().length > 0;
+  const diffTotal = isSearching ? 0 : stats.totalRemaining - prevStats.totalRemaining;
+  const diffSplit = isSearching ? 0 : stats.splitByFour - prevStats.splitByFour;
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN').format(val);
@@ -168,16 +175,14 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleDeleteTransaction = async (id: string) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa bản ghi này không?")) {
-      try {
-        await db.delete(id);
-        await fetchData(); // Refresh data
-        setIsModalOpen(false);
-        setSelectedTransaction(null);
-      } catch (error) {
-        alert("Có lỗi khi xóa dữ liệu.");
-        console.error(error);
-      }
+    try {
+      await db.delete(id);
+      await fetchData(); // Refresh data
+      setIsModalOpen(false);
+      setSelectedTransaction(null);
+    } catch (error) {
+      alert("Có lỗi khi xóa dữ liệu.");
+      console.error(error);
     }
   };
 
@@ -185,11 +190,15 @@ export const Dashboard: React.FC = () => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + increment);
     setCurrentDate(newDate);
+    // Clear search when changing months to see the new month
+    if (searchTerm) setSearchTerm('');
   };
 
   const selectMonth = (date: Date) => {
     setCurrentDate(date);
     setIsMonthPickerOpen(false);
+    // Clear search when changing months
+    if (searchTerm) setSearchTerm('');
   };
   
   const handleExportExcel = () => {
@@ -197,8 +206,8 @@ export const Dashboard: React.FC = () => {
       alert("Không có dữ liệu để xuất!");
       return;
     }
-    const monthLabel = `${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
-    const dataToExport = searchTerm ? filteredTransactions : transactions;
+    const monthLabel = isSearching ? 'Ket_qua_tim_kiem' : `${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+    const dataToExport = transactions;
     exportToExcel(dataToExport, monthLabel);
   };
 
@@ -238,7 +247,9 @@ export const Dashboard: React.FC = () => {
                <Button variant="outline" size="sm" className="w-8 h-8 p-0">
                   <ChevronLeft size={16} />
                </Button>
-               <h1 className="text-xl font-semibold">Báo cáo thu chi xe 25F-002.19</h1>
+               <h1 className="text-xl font-semibold">
+                  {isSearching ? `Kết quả tìm kiếm: "${searchTerm}"` : 'Báo cáo thu chi xe 25F-002.19'}
+               </h1>
             </div>
             <div className="flex space-x-2 items-center">
                <Button 
@@ -316,15 +327,15 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - Show totals for current view (Month or Search Results) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <StatsCard 
-              title="Tổng dư" 
+              title={isSearching ? "Tổng dư (Kết quả tìm kiếm)" : "Tổng dư"} 
               value={stats.totalRemaining} 
               diff={diffTotal} 
             />
             <StatsCard 
-              title="Dư sau chia" 
+              title={isSearching ? "Dư sau chia (Kết quả tìm kiếm)" : "Dư sau chia"}
               value={stats.splitByFour} 
               diff={diffSplit} 
             />
@@ -336,7 +347,7 @@ export const Dashboard: React.FC = () => {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Tìm kiếm ghi chú hoặc ngày..." 
+                placeholder="Tìm kiếm toàn bộ dữ liệu..." 
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); }}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-9"
@@ -377,18 +388,19 @@ export const Dashboard: React.FC = () => {
                     <th className="h-12 px-2 align-middle text-center w-[90px]"></th>
                     <th className="h-12 px-4 align-middle">Ghi chú</th>
                     <th className="h-12 px-2 align-middle text-right w-[140px]">Trạng thái</th>
-                    <th className="h-12 px-2 align-middle w-[60px]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={12} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
+                      <td colSpan={11} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
                     </tr>
                   ) : filteredTransactions.length === 0 ? (
                     <tr>
-                       <td colSpan={12} className="p-10 text-center text-muted-foreground">
-                          Không tìm thấy dữ liệu phù hợp với "{searchTerm}" trong tháng {currentDate.getMonth() + 1}
+                       <td colSpan={11} className="p-10 text-center text-muted-foreground">
+                          {isSearching 
+                             ? `Không tìm thấy dữ liệu nào cho "${searchTerm}" trong toàn bộ hệ thống.` 
+                             : `Không có dữ liệu trong tháng ${currentDate.getMonth() + 1}`}
                        </td>
                     </tr>
                   ) : filteredTransactions.map((t) => (
@@ -423,14 +435,6 @@ export const Dashboard: React.FC = () => {
                       <td className="px-2 py-3 align-middle text-right">
                         <Badge status={t.status} />
                       </td>
-                      <td className="px-2 py-3 align-middle text-right">
-                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleDeleteTransaction(t.id); }}
-                          className="text-slate-400 hover:text-red-600 p-1 transition-colors"
-                         >
-                            <Trash2 size={16} />
-                         </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -442,13 +446,13 @@ export const Dashboard: React.FC = () => {
                  * Đơn vị tính: Nghìn đồng (Ví dụ: 13.400 = 13.400.000đ)
                </span>
                <span>
-                 Hiển thị: {filteredTransactions.length} / {transactions.length} bản ghi
+                 Hiển thị: {filteredTransactions.length} bản ghi {isSearching && '(Tìm kiếm toàn bộ)'}
                </span>
             </div>
           </div>
 
-          {/* Charts */}
-          {!isLoading && transactions.length > 0 && (
+          {/* Charts - Only show if NOT searching, because mixed months look bad on daily charts */}
+          {!isSearching && !isLoading && transactions.length > 0 && (
             <DashboardCharts 
               transactions={transactions} 
               prevTransactions={prevTransactions}

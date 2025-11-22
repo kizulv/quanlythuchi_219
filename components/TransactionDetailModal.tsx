@@ -11,7 +11,7 @@ import {
   Trash2,
   Lock,
 } from "lucide-react";
-import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem } from "../types";
+import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus } from "../types";
 import { Button } from "./ui/Button";
 import {
   processAndUploadImage,
@@ -294,6 +294,12 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     fileInputRef.current?.click();
   };
 
+  const handleDelete = () => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.")) {
+      onDelete(transaction.id);
+    }
+  };
+
   const handleSave = () => {
     // Generate auto content for note from dynamic items
     const autoDetails: string[] = [];
@@ -339,10 +345,20 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     }
     finalNote = finalNote.replace(/\s+\./g, '.').replace(/\.\./g, '.').trim();
 
+    // Determine new status based on rules
+    // AI_GENERATED -> VERIFIED
+    // VERIFIED -> VERIFIED (keep)
+    // PAID -> PAID (keep)
+    let newStatus = transaction.status;
+    if (newStatus === TransactionStatus.AI_GENERATED) {
+      newStatus = TransactionStatus.VERIFIED;
+    }
+
     const updated: Transaction = {
       ...transaction,
       date: date, // Use editable date
       note: finalNote,
+      status: newStatus, // Apply new status logic
       breakdown: {
         ...breakdown,
         revenueOther: totalRevenueOther,
@@ -765,10 +781,11 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                 <Button
                    variant="outline"
                    className="border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700 h-10 px-3"
-                   onClick={() => onDelete(transaction.id)}
+                   onClick={handleDelete}
                    title="Xóa phiếu này"
                 >
-                   <Trash2 size={16} />
+                   <Trash2 size={16} className="mr-2" />
+                   Xóa
                 </Button>
              )}
              
