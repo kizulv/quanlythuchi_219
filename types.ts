@@ -43,6 +43,7 @@ export interface TransactionBreakdown {
 export interface Transaction {
   id: string;
   date: string;
+  paymentMonth?: string; // Format: YYYY.MM (VD: 2025.10, 2025.11)
   revenue: number;
   sharedExpense: number;
   totalBalance: number;

@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { Transaction } from '../types';
 
@@ -5,6 +6,7 @@ export const exportToExcel = (transactions: Transaction[], monthLabel: string) =
   // 1. Chuẩn bị dữ liệu: Mapping từ Transaction sang format tiếng Việt dễ đọc
   const dataToExport = transactions.map(t => ({
     'Ngày': t.date,
+    'Kỳ thanh toán': t.paymentMonth || '-',
     'Xe': t.isShared ? '2 Xe' : '1 Xe',
     'Tổng thu (nghìn)': t.revenue,
     'Chi chung (nghìn)': t.sharedExpense,
@@ -24,6 +26,7 @@ export const exportToExcel = (transactions: Transaction[], monthLabel: string) =
   // 3. Cấu hình độ rộng cột (để nhìn đẹp hơn khi mở file)
   const columnWidths = [
     { wch: 15 }, // Ngày
+    { wch: 15 }, // Kỳ thanh toán
     { wch: 8 },  // Xe
     { wch: 15 }, // Tổng thu
     { wch: 15 }, // Chi chung

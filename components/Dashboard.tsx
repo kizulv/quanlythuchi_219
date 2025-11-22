@@ -14,7 +14,9 @@ import {
   FileText, 
   Settings,
   Trash2,
-  Wallet
+  Wallet,
+  Bus,
+  CheckSquare
 } from 'lucide-react';
 import { Transaction, TransactionStatus } from '../types';
 import { Button } from './ui/Button';
@@ -25,6 +27,8 @@ import { DashboardCharts } from './DashboardCharts';
 import { exportToExcel } from '../services/excelService';
 import { db } from '../services/database';
 import { ReconciliationSheet } from './ReconciliationSheet';
+import { PaymentModal } from './PaymentModal';
+import { toast } from 'sonner';
 
 export const Dashboard: React.FC = () => {
   // Initialize to November 2025 as requested
@@ -44,21 +48,25 @@ export const Dashboard: React.FC = () => {
   // Sheet State
   const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
 
+  // Payment Modal State
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Sort Helper: Sort by date
+      // Sort Helper: Sort by date ascending
       const sortFn = (a: Transaction, b: Transaction) => {
         const [da, ma, ya] = a.date.split('/').map(Number);
         const [db, mb, yb] = b.date.split('/').map(Number);
         return new Date(ya, ma - 1, da).getTime() - new Date(yb, mb - 1, db).getTime();
       };
 
-      // Logic: If searching, search GLOBAL. If not, get BY MONTH.
+      // Logic: If searching, search GLOBAL. If not, get BY PAYMENT CYCLE.
       if (searchTerm.trim()) {
         const searchResults = await db.search(searchTerm);
         setTransactions(searchResults.sort(sortFn));
-        // We don't change prevTransactions here as comparison charts don't make sense in global search
+        // No comparison for search
+        setPrevTransactions([]);
       } else {
         const month = currentDate.getMonth() + 1; // 1-12
         const year = currentDate.getFullYear();
@@ -71,9 +79,13 @@ export const Dashboard: React.FC = () => {
           prevYear = year - 1;
         }
 
-        // Fetch from Database Service
-        const currentData = await db.getByMonth(month, year);
-        const prevData = await db.getByMonth(prevMonth, prevYear);
+        // Fetch from Database Service using getCycleData
+        // false for strict param on current month allows it to fallback to "Open Items" if no paid items exist
+        const currentData = await db.getCycleData(month, year, false); 
+        
+        // For comparison, we want strictly the previous cycle's data
+        // However, if the previous cycle doesn't exist (e.g. too far back), it returns empty.
+        const prevData = await db.getCycleData(prevMonth, prevYear, false);
 
         setTransactions(currentData.sort(sortFn));
         setPrevTransactions(prevData);
@@ -94,10 +106,28 @@ export const Dashboard: React.FC = () => {
     return () => clearTimeout(timer);
   }, [currentDate, searchTerm]);
 
-  // Since fetching logic handles filtering, we just pass transactions through
-  const filteredTransactions = transactions;
 
-  // Calculate Statistics based on CURRENT view data
+  const handleOpenPaymentModal = () => {
+    if (transactions.length === 0) {
+      toast.error("Không có dữ liệu để tạo thanh toán.");
+      return;
+    }
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleConfirmPayment = async (selectedIds: string[], month: number, year: number) => {
+    try {
+      await db.markAsPaid(selectedIds, month, year);
+      toast.success(`Đã tạo thanh toán cho ${selectedIds.length} bản ghi!`);
+      setIsPaymentModalOpen(false);
+      await fetchData(); // Reload to reflect changes
+    } catch (error) {
+      console.error(error);
+      toast.error("Có lỗi xảy ra khi tạo thanh toán.");
+    }
+  };
+
+  // Stats Calculation: Based directly on the loaded transactions (which are already filtered by Cycle)
   const stats = useMemo(() => {
     const totalRemaining = transactions.reduce((acc, t) => acc + t.remainingBalance, 0);
     return {
@@ -106,7 +136,6 @@ export const Dashboard: React.FC = () => {
     };
   }, [transactions]);
 
-  // Calculate Statistics for PREVIOUS month (Full) with same logic
   const prevStats = useMemo(() => {
     const totalRemaining = prevTransactions.reduce((acc, t) => acc + t.remainingBalance, 0);
     return {
@@ -115,7 +144,7 @@ export const Dashboard: React.FC = () => {
     };
   }, [prevTransactions]);
 
-  // Only show difference if NOT searching (comparing month to month)
+  // Only show difference if NOT searching
   const isSearching = searchTerm.trim().length > 0;
   const diffTotal = isSearching ? 0 : stats.totalRemaining - prevStats.totalRemaining;
   const diffSplit = isSearching ? 0 : stats.splitByFour - prevStats.splitByFour;
@@ -130,16 +159,15 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleAddTransaction = () => {
-    // Create default empty transaction
     const today = new Date();
     const dayStr = today.getDate().toString().padStart(2, '0');
-    // Use 'today' month/year, not the currently viewed dashboard month
     const monthStr = (today.getMonth() + 1).toString().padStart(2, '0');
     const yearStr = today.getFullYear();
     
     const newTransaction: Transaction = {
-      id: '', // Empty ID signifies new
+      id: '',
       date: `${dayStr}/${monthStr}/${yearStr}`,
+      paymentMonth: undefined, // New items are unpaid by default
       revenue: 0,
       sharedExpense: 0,
       totalBalance: 0,
@@ -149,7 +177,7 @@ export const Dashboard: React.FC = () => {
       note: '',
       status: TransactionStatus.VERIFIED,
       details: '',
-      isShared: false, // Default to NOT shared (1 xe)
+      isShared: false,
       breakdown: {
         revenueDown: 0,
         revenueUp: 0,
@@ -159,7 +187,7 @@ export const Dashboard: React.FC = () => {
         expensePolice: 0,
         expenseRepair: 0,
         expenseOther: 0,
-        isShared: false, // Default to NOT shared
+        isShared: false,
         busId: "25F-002.19",
         partnerBusId: "25F-000.19"
       }
@@ -168,28 +196,29 @@ export const Dashboard: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  // Check if a transaction exists for a given date
   const handleCheckDateExists = (dateStr: string): Transaction | undefined => {
-    // Check in current transactions
     let found = transactions.find(t => t.date === dateStr);
-    // If not found, checking prevTransactions (edge case if user selects date from prev month)
     if (!found) {
       found = prevTransactions.find(t => t.date === dateStr);
     }
     return found;
   };
 
-  // Switch modal to edit mode for a specific transaction
   const handleSwitchToEdit = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
-    // Ensure modal stays open (it should be already, but good for safety)
     setIsModalOpen(true);
   };
 
   const handleSaveTransaction = async (updatedTransaction: Transaction) => {
     try {
+      // Enforce rule: Only PAID transactions can have a paymentMonth
+      // If status is VERIFIED or AI_GENERATED, paymentMonth must be undefined/null
+      if (updatedTransaction.status !== TransactionStatus.PAID) {
+        updatedTransaction.paymentMonth = undefined;
+      }
+
       await db.save(updatedTransaction);
-      await fetchData(); // Refresh data from DB
+      await fetchData();
       setIsModalOpen(false);
       setSelectedTransaction(null);
     } catch (error) {
@@ -201,7 +230,7 @@ export const Dashboard: React.FC = () => {
   const handleDeleteTransaction = async (id: string) => {
     try {
       await db.delete(id);
-      await fetchData(); // Refresh data
+      await fetchData();
       setIsModalOpen(false);
       setSelectedTransaction(null);
     } catch (error) {
@@ -214,14 +243,12 @@ export const Dashboard: React.FC = () => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + increment);
     setCurrentDate(newDate);
-    // Clear search when changing months to see the new month
     if (searchTerm) setSearchTerm('');
   };
 
   const selectMonth = (date: Date) => {
     setCurrentDate(date);
     setIsMonthPickerOpen(false);
-    // Clear search when changing months
     if (searchTerm) setSearchTerm('');
   };
   
@@ -230,12 +257,10 @@ export const Dashboard: React.FC = () => {
       alert("Không có dữ liệu để xuất!");
       return;
     }
-    const monthLabel = isSearching ? 'Ket_qua_tim_kiem' : `${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
-    const dataToExport = transactions;
-    exportToExcel(dataToExport, monthLabel);
+    const monthLabel = isSearching ? 'Ket_qua_tim_kiem' : `Ky_Thanh_Toan_${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
+    exportToExcel(transactions, monthLabel);
   };
 
-  // Generate last 12 months for dropdown, anchored at Nov 2025
   const last12Months = useMemo(() => {
     const months = [];
     const anchorDate = new Date(2025, 10, 1); 
@@ -246,6 +271,22 @@ export const Dashboard: React.FC = () => {
     }
     return months.sort((a, b) => a.getTime() - b.getTime());
   }, []);
+
+  // Determine label for current view
+  const getCurrentViewLabel = () => {
+    if (isSearching) return `Kết quả tìm kiếm: "${searchTerm}"`;
+    
+    // Check if data is historical (PAID) or open
+    const hasPaidItems = transactions.some(t => t.status === TransactionStatus.PAID);
+    const monthStr = `Tháng ${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+    
+    if (hasPaidItems) {
+      return `Kỳ thanh toán ${monthStr} (Đã chốt)`;
+    } else {
+      // If empty or contains unpaid items, it's the current open cycle
+      return `Kỳ hiện tại ${monthStr} (Chưa thanh toán)`;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex">
@@ -268,30 +309,71 @@ export const Dashboard: React.FC = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-3">
-               <Button variant="outline" size="sm" className="w-8 h-8 p-0">
-                  <ChevronLeft size={16} />
-               </Button>
-               <h1 className="text-xl font-semibold">
-                  {isSearching ? `Kết quả tìm kiếm: "${searchTerm}"` : 'Báo cáo thu chi xe 25F-002.19'}
+                <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
+                  <Bus size={24} />
+                </div>
+               <h1 className="text-xl font-semibold flex items-center gap-2">
+                  {getCurrentViewLabel()}
                </h1>
             </div>
             <div className="flex space-x-2 items-center">
-               {/* 1. Xuất Excel */}
+               {/* 1. Đối soát tiền mặt */}
                <Button 
                   variant="outline" 
                   size="md" 
-                  icon={<Download size={14}/>}
-                  onClick={handleExportExcel}
+                  icon={<Wallet size={14}/>} 
+                  onClick={() => setIsReconciliationOpen(true)}
                >
-                  Xuất Excel
+                  Đối soát tiền mặt
                </Button>
 
-               {/* 2. Month Picker */}
+               {/* 2. Tạo thanh toán */}
+               <Button 
+                variant="primary" 
+                size="md" 
+                icon={<CreditCard size={14}/>}
+                onClick={handleOpenPaymentModal}
+                className="bg-blue-600 hover:bg-blue-700"
+               >
+                  Tạo thanh toán
+               </Button>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <StatsCard 
+              title={isSearching ? "Tổng dư (Kết quả tìm kiếm)" : "Tổng dư (Trong kỳ hiển thị)"} 
+              value={stats.totalRemaining} 
+              diff={diffTotal} 
+            />
+            <StatsCard 
+              title={isSearching ? "Dư sau chia (Kết quả tìm kiếm)" : "Dư sau chia (Trong kỳ hiển thị)"}
+              value={stats.splitByFour} 
+              diff={diffSplit} 
+            />
+          </div>
+
+          {/* Action Bar */}
+          <div className="flex flex-col md:flex-row justify-between items-center mb-5 gap-4">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm toàn bộ dữ liệu..." 
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); }}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-9"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
+               {/* 1. Month Picker */}
                <div className="flex items-center bg-white border rounded-md shadow-sm relative">
                  <button 
                     onClick={() => changeMonth(-1)}
                     className="p-2.5 hover:bg-slate-100 border-r"
-                    title="Tháng trước"
+                    title="Kỳ trước"
                  >
                    <ChevronLeft size={14} />
                  </button>
@@ -299,10 +381,10 @@ export const Dashboard: React.FC = () => {
                  <div className="relative">
                    <button 
                       onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
-                      className="px-4 py-2 text-sm font-medium min-w-[130px] text-center flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                      className="px-4 py-2 text-sm font-medium min-w-[150px] text-center flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
                    >
                       <Calendar size={14}/>
-                      {`T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
+                      {`Kỳ: T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
                       <ChevronDown size={14} className={`transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`}/>
                    </button>
                    
@@ -314,7 +396,7 @@ export const Dashboard: React.FC = () => {
                       />
                       <div className="absolute top-full mt-1 right-0 w-[300px] bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-200">
                         <div className="text-sm font-semibold text-slate-500 mb-3 px-1">
-                          Chọn tháng báo cáo
+                          Chọn kỳ thanh toán
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           {last12Months.map((date, idx) => {
@@ -345,57 +427,23 @@ export const Dashboard: React.FC = () => {
                  <button 
                     onClick={() => changeMonth(1)}
                     className="p-2.5 hover:bg-slate-100 border-l"
-                    title="Tháng sau"
+                    title="Kỳ sau"
                  >
                    <ChevronRight size={14} />
                  </button>
                </div>
 
-               {/* 3. Đối soát tiền mặt (Moved to header) */}
+               {/* 2. Xuất Excel */}
                <Button 
                   variant="outline" 
                   size="md" 
-                  icon={<Wallet size={14}/>} 
-                  onClick={() => setIsReconciliationOpen(true)}
+                  icon={<Download size={14}/>}
+                  onClick={handleExportExcel}
                >
-                  Đối soát tiền mặt
+                  Xuất Excel
                </Button>
 
-               {/* 4. Tạo thanh toán (Moved to header, Primary) */}
-               <Button variant="primary" size="md" icon={<CreditCard size={14}/>}>
-                  Tạo thanh toán
-               </Button>
-            </div>
-          </div>
-
-          {/* Stats Cards - Show totals for current view (Month or Search Results) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <StatsCard 
-              title={isSearching ? "Tổng dư (Kết quả tìm kiếm)" : "Tổng dư"} 
-              value={stats.totalRemaining} 
-              diff={diffTotal} 
-            />
-            <StatsCard 
-              title={isSearching ? "Dư sau chia (Kết quả tìm kiếm)" : "Dư sau chia"}
-              value={stats.splitByFour} 
-              diff={diffSplit} 
-            />
-          </div>
-
-          {/* Action Bar */}
-          <div className="flex flex-col md:flex-row justify-between items-center mb-5 gap-4">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm toàn bộ dữ liệu..." 
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); }}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-9"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-3 w-full md:w-auto">
+               {/* 3. Thêm sổ thu chi */}
                <Button 
                   variant="outline" 
                   size="md" 
@@ -433,16 +481,19 @@ export const Dashboard: React.FC = () => {
                     <tr>
                       <td colSpan={11} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
                     </tr>
-                  ) : filteredTransactions.length === 0 ? (
+                  ) : transactions.length === 0 ? (
                     <tr>
                        <td colSpan={11} className="p-10 text-center text-muted-foreground">
                           {isSearching 
-                             ? `Không tìm thấy dữ liệu nào cho "${searchTerm}" trong toàn bộ hệ thống.` 
-                             : `Không có dữ liệu trong tháng ${currentDate.getMonth() + 1}`}
+                             ? `Không tìm thấy dữ liệu nào cho "${searchTerm}"` 
+                             : `Không có dữ liệu backlog nào trong kỳ hiện tại.`}
                        </td>
                     </tr>
-                  ) : filteredTransactions.map((t) => (
-                    <tr key={t.id} className="hover:bg-slate-50/60 transition-colors group">
+                  ) : transactions.map((t) => (
+                    <tr 
+                      key={t.id} 
+                      className="hover:bg-slate-50/60 transition-colors group"
+                    >
                       <td className="px-2 py-3 align-middle text-center">
                          <input 
                           type="checkbox" 
@@ -480,16 +531,18 @@ export const Dashboard: React.FC = () => {
             </div>
             
             <div className="border-t p-4 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-               <span className="font-medium italic">
-                 * Đơn vị tính: Nghìn đồng (Ví dụ: 13.400 = 13.400.000đ)
-               </span>
+               <div className="flex items-center gap-4">
+                 <span className="font-medium italic">
+                   * Dữ liệu hiển thị theo Kỳ thanh toán (Có thể bao gồm ngày của tháng khác nếu thuộc cùng kỳ)
+                 </span>
+               </div>
                <span>
-                 Hiển thị: {filteredTransactions.length} bản ghi {isSearching && '(Tìm kiếm toàn bộ)'}
+                 Hiển thị: {transactions.length} bản ghi {isSearching && '(Tìm kiếm toàn bộ)'}
                </span>
             </div>
           </div>
 
-          {/* Charts - Only show if NOT searching, because mixed months look bad on daily charts */}
+          {/* Charts */}
           {!isSearching && !isLoading && transactions.length > 0 && (
             <DashboardCharts 
               transactions={transactions} 
@@ -511,6 +564,14 @@ export const Dashboard: React.FC = () => {
           onSwitchToEdit={handleSwitchToEdit}
         />
       )}
+
+      {/* Payment Cycle Modal */}
+      <PaymentModal 
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        transactions={transactions}
+        onConfirm={handleConfirmPayment}
+      />
 
       {/* Reconciliation Sheet */}
       <ReconciliationSheet 

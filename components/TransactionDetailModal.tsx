@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   X,
@@ -106,6 +105,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const [showSimpleDuplicateAlert, setShowSimpleDuplicateAlert] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Determine if editing should be restricted (Status = PAID)
+  const isPaid = transaction.status === TransactionStatus.PAID;
 
   // Helper: Format value for display
   const formatForDisplay = (val: number) =>
@@ -649,13 +651,14 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                 onChange={handleFileSelect}
                 accept="image/jpeg,image/png,image/jpg"
                 className="hidden"
+                disabled={isPaid}
               />
               <Button
                 variant="primary"
                 size="sm"
-                className="shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium h-9"
+                className={`shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium h-9 ${isPaid ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={triggerUpload}
-                disabled={isUploading}
+                disabled={isUploading || isPaid}
               >
                 <Upload size={16} className="mr-2" />
                 {imageUrl ? "Thay ảnh" : "Tải ảnh"}
@@ -670,10 +673,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             <div className="px-4 pt-3 pb-0 bg-white sticky top-0 z-10">
                {/* Row 1: Title and Close - ALIGNMENT FIXED HERE */}
                <div className="flex justify-between items-center mb-1">
-                  <div>
+                  <div className="flex items-center gap-3">
                      <h2 className="font-bold text-xl text-slate-900 leading-none">
                         {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới dữ liệu'}
                      </h2>
+                     {isPaid && (
+                       <span className="text-[10px] font-bold text-white bg-slate-500 px-2 py-0.5 rounded">ĐÃ THANH TOÁN (CHỈ XEM)</span>
+                     )}
                   </div>
                   <button
                     onClick={onClose}
@@ -693,10 +699,16 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   <div className="relative">
                     {/* Trigger Button */}
                      <div 
-                        className="flex items-center gap-3 bg-white border border-slate-200 hover:border-slate-400 hover:ring-4 hover:ring-slate-100 shadow-sm rounded-xl px-4 py-3 transition-all duration-200 min-w-[220px] cursor-pointer group select-none"
-                        onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                        className={`
+                          flex items-center gap-3 border shadow-sm rounded-xl px-4 py-3 transition-all duration-200 min-w-[220px] select-none
+                          ${isPaid 
+                            ? 'bg-slate-50 border-slate-100 opacity-80 cursor-not-allowed' 
+                            : 'bg-white border-slate-200 hover:border-slate-400 hover:ring-4 hover:ring-slate-100 cursor-pointer group'
+                          }
+                        `}
+                        onClick={() => !isPaid && setIsCalendarOpen(!isCalendarOpen)}
                      >
-                        <div className="p-1 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-slate-900 group-hover:text-white transition-colors shadow-sm">
+                        <div className={`p-1 rounded-lg transition-colors shadow-sm ${isPaid ? 'bg-slate-200 text-slate-400' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-900 group-hover:text-white'}`}>
                            <CalendarDays size={22} strokeWidth={2.5} />
                         </div>
                         <div className="flex flex-col">
@@ -708,7 +720,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                      </div>
                      
                      {/* Custom Calendar Popup */}
-                     {isCalendarOpen && (
+                     {isCalendarOpen && !isPaid && (
                        <>
                          {/* Backdrop to close on outside click */}
                          <div className="fixed inset-0 z-40" onClick={() => setIsCalendarOpen(false)} />
@@ -733,12 +745,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               {/* CONFIG SECTION */}
               <section className="bg-slate-50/80 rounded-lg border border-slate-200 p-3 space-y-2 shadow-sm">
                  <div className="flex items-center justify-between">
-                    <label className="flex items-center space-x-2 cursor-pointer group select-none">
+                    <label className={`flex items-center space-x-2 select-none ${isPaid ? 'cursor-not-allowed opacity-70' : 'cursor-pointer group'}`}>
                        <input 
                           type="checkbox" 
                           checked={breakdown.isShared} 
                           onChange={handleCheckboxChange}
-                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-900"
+                          disabled={isPaid}
+                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-900 disabled:cursor-not-allowed"
                        />
                        <span className="text-sm font-semibold text-slate-700">
                           Chế độ đi 2 xe (Ăn chia)
@@ -750,21 +763,23 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     <div className="space-y-1">
                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe chính</label>
                        <select 
-                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
+                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                           value={breakdown.busId}
                           onChange={(e) => setBreakdown({ ...breakdown, busId: e.target.value })}
+                          disabled={isPaid}
                        >
                           <option value="25F-002.19">25F-002.19</option>
                           <option value="29B-123.45">29B-123.45</option>
                        </select>
                     </div>
                     
-                    <div className={`space-y-1 transition-all duration-200 ${!breakdown.isShared ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
+                    <div className={`space-y-1 transition-all duration-200 ${(!breakdown.isShared) ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe đối tác</label>
                        <select 
-                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none"
+                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                           value={breakdown.partnerBusId}
                           onChange={(e) => setBreakdown({ ...breakdown, partnerBusId: e.target.value })}
+                          disabled={isPaid}
                        >
                            <option value="25F-000.19">25F-000.19</option>
                            <option value="15B-999.99">15B-999.99</option>
@@ -787,45 +802,54 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                  </div>
                  
                  <div className="space-y-1.5">
-                    <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} />
-                    <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} />
+                    <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} readOnly={isPaid} />
+                    <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} readOnly={isPaid} />
                     
                     {/* Dynamic Revenue Items */}
                     <div className="space-y-1.5">
                        {otherRevenues.map((item) => (
                           <div key={item.id} className={dynamicGridClass}>
+                             {/* Delete Button */}
                              <button 
-                                onClick={() => removeOtherRevenueItem(item.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
-                                title="Xóa"
+                                onClick={isPaid ? undefined : () => removeOtherRevenueItem(item.id)}
+                                className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+                                    isPaid ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                                }`}
+                                disabled={isPaid}
+                                title={isPaid ? "Không thể xóa" : "Xóa"}
                              >
                                 <Trash2 size={14} />
                              </button>
+                             
                              <input
                                 type="text"
                                 placeholder="Tên khoản thu..."
-                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
+                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
                                 value={item.description}
                                 onChange={(e) => updateOtherRevenueItem(item.id, 'description', e.target.value)}
+                                disabled={isPaid}
                              />
                              <SmartInput
                                 value={item.amount}
                                 onCommit={(val) => updateOtherRevenueItem(item.id, 'amount', val)}
                                 className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                readOnly={isPaid}
                              />
                           </div>
                        ))}
                     </div>
 
-                    <div className="pt-0.5">
-                      <button 
-                         onClick={addOtherRevenueItem}
-                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
-                      >
-                         <Plus size={14} />
-                         Thêm khoản thu
-                      </button>
-                    </div>
+                    {!isPaid && (
+                      <div className="pt-0.5">
+                        <button 
+                            onClick={addOtherRevenueItem}
+                            className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                        >
+                            <Plus size={14} />
+                            Thêm khoản thu
+                        </button>
+                      </div>
+                    )}
                  </div>
               </section>
 
@@ -841,6 +865,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        value={totalExpenseInput}
                        onCommit={handleTotalExpenseChange}
                        className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
+                       readOnly={isPaid}
                     />
                  </div>
                  
@@ -849,6 +874,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        label="Dầu" 
                        value={breakdown.expenseFuel} 
                        onChange={(v) => handleExpenseComponentChange("expenseFuel", v)} 
+                       readOnly={isPaid}
                     />
                     
                     {/* Fixed Expense */}
@@ -873,11 +899,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        label="Chi luật (CA)" 
                        value={breakdown.expensePolice} 
                        onChange={(v) => handleExpenseComponentChange("expensePolice", v)} 
+                       readOnly={isPaid}
                     />
                     <InputRow 
                        label="Sửa chữa" 
                        value={breakdown.expenseRepair} 
                        onChange={(v) => handleExpenseComponentChange("expenseRepair", v)} 
+                       readOnly={isPaid}
                     />
                     
                     {/* Dynamic Expense Items */}
@@ -885,37 +913,44 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        {otherExpenses.map((item) => (
                           <div key={item.id} className={dynamicGridClass}>
                              <button 
-                                onClick={() => removeOtherExpenseItem(item.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
-                                title="Xóa"
+                                onClick={isPaid ? undefined : () => removeOtherExpenseItem(item.id)}
+                                className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+                                    isPaid ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                                }`}
+                                disabled={isPaid}
+                                title={isPaid ? "Không thể xóa" : "Xóa"}
                              >
                                 <Trash2 size={14} />
                              </button>
                              <input
                                 type="text"
                                 placeholder="Tên khoản chi..."
-                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
+                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
                                 value={item.description}
                                 onChange={(e) => updateOtherExpenseItem(item.id, 'description', e.target.value)}
+                                disabled={isPaid}
                              />
                              <SmartInput
                                 value={item.amount}
                                 onCommit={(val) => updateOtherExpenseItem(item.id, 'amount', val)}
                                 className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                readOnly={isPaid}
                              />
                           </div>
                        ))}
                     </div>
 
-                    <div className="pt-0.5">
-                      <button 
-                         onClick={addOtherExpenseItem}
-                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
-                      >
-                         <Plus size={14} />
-                         Thêm khoản chi
-                      </button>
-                    </div>
+                    {!isPaid && (
+                      <div className="pt-0.5">
+                        <button 
+                            onClick={addOtherExpenseItem}
+                            className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                        >
+                            <Plus size={14} />
+                            Thêm khoản chi
+                        </button>
+                      </div>
+                    )}
                  </div>
               </section>
 
@@ -931,6 +966,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                              onCommit={setCustomTotalBalance}
                              placeholder="Số dư..."
                              className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+                             readOnly={isPaid}
                           />
                        ) : (
                           <div className="w-full h-8 flex items-center justify-end px-2">
@@ -967,37 +1003,44 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                             {privateExpenses.map((item) => (
                                <div key={item.id} className={dynamicGridClass}>
                                   <button 
-                                     onClick={() => removePrivateExpenseItem(item.id)}
-                                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
-                                     title="Xóa"
+                                      onClick={isPaid ? undefined : () => removePrivateExpenseItem(item.id)}
+                                      className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+                                          isPaid ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                                      }`}
+                                      disabled={isPaid}
+                                      title={isPaid ? "Không thể xóa" : "Xóa"}
                                   >
-                                     <Trash2 size={14} />
+                                      <Trash2 size={14} />
                                   </button>
                                   <input
                                      type="text"
                                      placeholder="Khoản chi riêng..."
-                                     className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400"
+                                     className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
                                      value={item.description}
                                      onChange={(e) => updatePrivateExpenseItem(item.id, 'description', e.target.value)}
+                                     disabled={isPaid}
                                   />
                                   <SmartInput
                                      value={item.amount}
                                      onCommit={(val) => updatePrivateExpenseItem(item.id, 'amount', val)}
                                      className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                     readOnly={isPaid}
                                   />
                                </div>
                             ))}
                          </div>
 
-                         <div className="pt-0.5">
-                            <button 
-                               onClick={addPrivateExpenseItem}
-                               className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-1.5 py-1 rounded hover:bg-slate-100 ml-[-6px]"
-                            >
-                               <Plus size={14} />
-                               Thêm chi riêng
-                            </button>
-                         </div>
+                         {!isPaid && (
+                           <div className="pt-0.5">
+                              <button 
+                                  onClick={addPrivateExpenseItem}
+                                  className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                              >
+                                  <Plus size={14} />
+                                  Thêm chi riêng
+                              </button>
+                           </div>
+                         )}
                       </div>
                     )}
 
@@ -1012,9 +1055,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                  </div>
               </section>
 
-              {/* NOTES SECTION */}
+              {/* NOTES SECTION - ALWAYS ENABLED */}
               <div className="space-y-1">
-                 <label className="text-xs font-semibold text-slate-600">Ghi chú thêm</label>
+                 <label className="text-xs font-semibold text-slate-600">Ghi chú thêm {isPaid && "(Có thể chỉnh sửa)"}</label>
                  <textarea
                     className="flex min-h-[60px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 resize-none shadow-sm"
                     value={note}
@@ -1029,9 +1072,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                {transaction.id && (
                   <Button
                      variant="outline"
-                     className="border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700 h-10 px-3"
-                     onClick={handleDeleteClick}
-                     title="Xóa phiếu này"
+                     className={`border-red-100 text-red-600 h-10 px-3 ${isPaid ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-50 hover:text-red-700'}`}
+                     onClick={isPaid ? undefined : handleDeleteClick}
+                     disabled={isPaid}
+                     title={isPaid ? "Không thể xóa bản ghi đã thanh toán" : "Xóa phiếu này"}
                   >
                      <Trash2 size={16} className="mr-2" />
                      Xóa
@@ -1052,7 +1096,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     onClick={handleSave}
                   >
                     <Save size={16} className="mr-2" />
-                    Lưu thay đổi
+                    Lưu {isPaid ? 'ghi chú' : 'thay đổi'}
                   </Button>
                </div>
             </div>
@@ -1103,17 +1147,20 @@ const InputRow = ({
   label,
   value,
   onChange,
+  readOnly = false,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  readOnly?: boolean;
 }) => (
   <div className="grid grid-cols-[1fr_130px] gap-2 items-center group">
     <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors truncate" title={label}>{label}</span>
     <SmartInput
       value={value}
       onCommit={onChange}
-      className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+      className={`w-full text-right h-8 rounded border border-slate-200 px-2 text-sm font-medium text-slate-700 outline-none transition-all ${readOnly ? 'bg-slate-50 cursor-not-allowed' : 'bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100'}`}
+      readOnly={readOnly}
     />
   </div>
 );
