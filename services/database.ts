@@ -1,16 +1,26 @@
 
-import { Transaction } from '../types';
+import { Transaction, ReconciliationReport } from '../types';
 import { MOCK_DATABASE } from '../data/mockData';
+import { MOCK_RECONCILIATION_REPORTS } from '../data/reconData';
 
 const DB_KEY = 'busmanager_db_v1';
+const RECON_DB_KEY = 'busmanager_recon_v1';
 
 // Simulate MongoDB-like API
 export const db = {
   init: () => {
     if (typeof window === 'undefined') return;
+    
+    // Init Transactions Collection
     if (!localStorage.getItem(DB_KEY)) {
       localStorage.setItem(DB_KEY, JSON.stringify(MOCK_DATABASE));
-      console.log('Database initialized with mock data');
+      console.log('Transaction Database initialized with mock data');
+    }
+
+    // Init Reconciliation Collection with Mock Data from data/reconData.ts
+    if (!localStorage.getItem(RECON_DB_KEY)) {
+      localStorage.setItem(RECON_DB_KEY, JSON.stringify(MOCK_RECONCILIATION_REPORTS));
+      console.log('Reconciliation Database initialized with mock data');
     }
   },
 
@@ -38,7 +48,7 @@ export const db = {
     const lowerQuery = query.toLowerCase().trim();
     return all.filter(t => 
       (t.note && t.note.toLowerCase().includes(lowerQuery)) || 
-      (t.date && t.date.includes(query))
+      (t.date && t.date.toLowerCase().includes(lowerQuery))
     );
   },
 
@@ -67,5 +77,31 @@ export const db = {
     const all = await db.getAll();
     const filtered = all.filter(t => t.id !== id);
     localStorage.setItem(DB_KEY, JSON.stringify(filtered));
+  },
+
+  // --- RECONCILIATION METHODS ---
+  
+  getReconciliation: async (month: number, year: number): Promise<ReconciliationReport | null> => {
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const data = localStorage.getItem(RECON_DB_KEY);
+    const allRecons: ReconciliationReport[] = data ? JSON.parse(data) : [];
+    
+    const id = `recon_${month}_${year}`;
+    return allRecons.find(r => r.id === id) || null;
+  },
+
+  saveReconciliation: async (report: ReconciliationReport): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const data = localStorage.getItem(RECON_DB_KEY);
+    const allRecons: ReconciliationReport[] = data ? JSON.parse(data) : [];
+    
+    const index = allRecons.findIndex(r => r.id === report.id);
+    if (index >= 0) {
+      allRecons[index] = { ...report, lastUpdated: new Date().toISOString() };
+    } else {
+      allRecons.push({ ...report, lastUpdated: new Date().toISOString() });
+    }
+    
+    localStorage.setItem(RECON_DB_KEY, JSON.stringify(allRecons));
   }
 };

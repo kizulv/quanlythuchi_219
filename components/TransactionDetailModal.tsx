@@ -13,15 +13,18 @@ import {
   Calendar as CalendarIcon,
   CalendarDays,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Save
 } from "lucide-react";
 import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus } from "../types";
 import { Button } from "./ui/Button";
 import { AlertDialog } from "./ui/AlertDialog";
+import { SmartInput } from "./ui/SmartInput";
 import {
   processAndUploadImage,
   getProcessedDataUrl,
 } from "../services/imageService";
+import { toast } from "sonner";
 
 interface TransactionDetailModalProps {
   transaction: Transaction;
@@ -56,6 +59,7 @@ const VN_MONTHS = [
   "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
 ];
 const VN_WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
 
 export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   transaction,
@@ -106,10 +110,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   // Helper: Format value for display
   const formatForDisplay = (val: number) =>
     new Intl.NumberFormat("vi-VN").format(val);
-
-  // Helper: Parse input string to number
-  const parseInput = (value: string) => 
-    parseInt(value.replace(/,/g, "").replace(/\./g, ""), 10) || 0;
 
   // Helper: Parse "DD/MM/YYYY" string to Date object
   const parseDateString = (dateStr: string): Date => {
@@ -317,27 +317,24 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   // Handle Revenue inputs (Standard)
   const handleRevenueChange = (
     field: keyof TransactionBreakdown,
-    value: string
+    value: number
   ) => {
-    const rawInput = parseInput(value);
-    setBreakdown((prev) => ({ ...prev, [field]: rawInput }));
+    setBreakdown((prev) => ({ ...prev, [field]: value }));
   };
 
   // Handle Expense Component inputs (Recalculate Fixed Expense)
   const handleExpenseComponentChange = (
     field: keyof TransactionBreakdown,
-    value: string
+    value: number
   ) => {
-    const rawInput = parseInput(value);
-    const nextBreakdown = { ...breakdown, [field]: rawInput };
+    const nextBreakdown = { ...breakdown, [field]: value };
     updateBreakdownWithFixedCalc(totalExpenseInput, nextBreakdown, otherExpenses);
   };
 
   // Handle Total Expense Input Change
-  const handleTotalExpenseChange = (value: string) => {
-    const rawInput = parseInput(value);
-    setTotalExpenseInput(rawInput);
-    updateBreakdownWithFixedCalc(rawInput, breakdown, otherExpenses);
+  const handleTotalExpenseChange = (value: number) => {
+    setTotalExpenseInput(value);
+    updateBreakdownWithFixedCalc(value, breakdown, otherExpenses);
   };
 
   // --- Dynamic Items Logic ---
@@ -419,6 +416,12 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   };
 
   const handleSave = () => {
+    // VALIDATION: Check if any data is entered
+    if (totalRevenue === 0 && totalExpense === 0 && totalPrivateExpense === 0 && totalBalance === 0) {
+      toast.error("Vui lòng nhập dữ liệu thu chi trước khi lưu!");
+      return;
+    }
+
     // CRITICAL: Check for duplicate date BEFORE saving
     
     if (onCheckExists) {
@@ -516,6 +519,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       imageUrl: imageUrl,
     };
     onSave(updated);
+    toast.success("Đã lưu sổ thu chi thành công!");
   };
 
   // Render Calendar Logic
@@ -783,8 +787,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                  </div>
                  
                  <div className="space-y-1.5">
-                    <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} displayFormatter={formatForDisplay} />
-                    <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} displayFormatter={formatForDisplay} />
+                    <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} />
+                    <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} />
                     
                     {/* Dynamic Revenue Items */}
                     <div className="space-y-1.5">
@@ -804,12 +808,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                                 value={item.description}
                                 onChange={(e) => updateOtherRevenueItem(item.id, 'description', e.target.value)}
                              />
-                             <input
-                                type="text"
-                                placeholder="0"
+                             <SmartInput
+                                value={item.amount}
+                                onCommit={(val) => updateOtherRevenueItem(item.id, 'amount', val)}
                                 className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
-                                value={formatForDisplay(item.amount)}
-                                onChange={(e) => updateOtherRevenueItem(item.id, 'amount', parseInput(e.target.value))}
                              />
                           </div>
                        ))}
@@ -835,11 +837,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        <div className="w-1 h-3 bg-red-500 rounded-full"></div>
                        <h3 className="font-semibold text-slate-800 text-sm">Tổng Chi</h3>
                     </div>
-                    <input
-                       type="text"
+                    <SmartInput
+                       value={totalExpenseInput}
+                       onCommit={handleTotalExpenseChange}
                        className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
-                       value={formatForDisplay(totalExpenseInput)}
-                       onChange={(e) => handleTotalExpenseChange(e.target.value)}
                     />
                  </div>
                  
@@ -848,7 +849,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        label="Dầu" 
                        value={breakdown.expenseFuel} 
                        onChange={(v) => handleExpenseComponentChange("expenseFuel", v)} 
-                       displayFormatter={formatForDisplay} 
                     />
                     
                     {/* Fixed Expense */}
@@ -873,13 +873,11 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        label="Chi luật (CA)" 
                        value={breakdown.expensePolice} 
                        onChange={(v) => handleExpenseComponentChange("expensePolice", v)} 
-                       displayFormatter={formatForDisplay} 
                     />
                     <InputRow 
                        label="Sửa chữa" 
                        value={breakdown.expenseRepair} 
                        onChange={(v) => handleExpenseComponentChange("expenseRepair", v)} 
-                       displayFormatter={formatForDisplay} 
                     />
                     
                     {/* Dynamic Expense Items */}
@@ -900,12 +898,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                                 value={item.description}
                                 onChange={(e) => updateOtherExpenseItem(item.id, 'description', e.target.value)}
                              />
-                             <input
-                                type="text"
-                                placeholder="0"
+                             <SmartInput
+                                value={item.amount}
+                                onCommit={(val) => updateOtherExpenseItem(item.id, 'amount', val)}
                                 className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
-                                value={formatForDisplay(item.amount)}
-                                onChange={(e) => updateOtherExpenseItem(item.id, 'amount', parseInput(e.target.value))}
                              />
                           </div>
                        ))}
@@ -930,12 +926,11 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     <div className={gridClass}>
                        <span className="text-sm font-medium text-slate-600">Tổng dư (Thu-Chi)</span>
                        {isManualBalanceMode ? (
-                          <input
-                             type="text"
+                          <SmartInput
+                             value={customTotalBalance}
+                             onCommit={setCustomTotalBalance}
                              placeholder="Số dư..."
                              className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
-                             value={formatForDisplay(customTotalBalance)}
-                             onChange={(e) => setCustomTotalBalance(parseInput(e.target.value))}
                           />
                        ) : (
                           <div className="w-full h-8 flex items-center justify-end px-2">
@@ -985,12 +980,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                                      value={item.description}
                                      onChange={(e) => updatePrivateExpenseItem(item.id, 'description', e.target.value)}
                                   />
-                                  <input
-                                     type="text"
-                                     placeholder="0"
+                                  <SmartInput
+                                     value={item.amount}
+                                     onCommit={(val) => updatePrivateExpenseItem(item.id, 'amount', val)}
                                      className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
-                                     value={formatForDisplay(item.amount)}
-                                     onChange={(e) => updatePrivateExpenseItem(item.id, 'amount', parseInput(e.target.value))}
                                   />
                                </div>
                             ))}
@@ -1058,6 +1051,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     className="bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10 min-w-[120px]"
                     onClick={handleSave}
                   >
+                    <Save size={16} className="mr-2" />
                     Lưu thay đổi
                   </Button>
                </div>
@@ -1109,20 +1103,17 @@ const InputRow = ({
   label,
   value,
   onChange,
-  displayFormatter,
 }: {
   label: string;
   value: number;
-  onChange: (v: string) => void;
-  displayFormatter: (v: number) => string;
+  onChange: (v: number) => void;
 }) => (
   <div className="grid grid-cols-[1fr_130px] gap-2 items-center group">
     <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors truncate" title={label}>{label}</span>
-    <input
-      type="text"
+    <SmartInput
+      value={value}
+      onCommit={onChange}
       className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
-      value={displayFormatter(value)}
-      onChange={(e) => onChange(e.target.value)}
     />
   </div>
 );

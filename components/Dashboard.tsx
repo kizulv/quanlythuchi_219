@@ -13,7 +13,8 @@ import {
   LayoutDashboard, 
   FileText, 
   Settings,
-  Trash2
+  Trash2,
+  Wallet
 } from 'lucide-react';
 import { Transaction, TransactionStatus } from '../types';
 import { Button } from './ui/Button';
@@ -23,6 +24,7 @@ import { TransactionDetailModal } from './TransactionDetailModal';
 import { DashboardCharts } from './DashboardCharts';
 import { exportToExcel } from '../services/excelService';
 import { db } from '../services/database';
+import { ReconciliationSheet } from './ReconciliationSheet';
 
 export const Dashboard: React.FC = () => {
   // Initialize to November 2025 as requested
@@ -38,6 +40,9 @@ export const Dashboard: React.FC = () => {
   // Modal State
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Sheet State
+  const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -271,6 +276,7 @@ export const Dashboard: React.FC = () => {
                </h1>
             </div>
             <div className="flex space-x-2 items-center">
+               {/* 1. Xuất Excel */}
                <Button 
                   variant="outline" 
                   size="md" 
@@ -279,7 +285,8 @@ export const Dashboard: React.FC = () => {
                >
                   Xuất Excel
                </Button>
-               
+
+               {/* 2. Month Picker */}
                <div className="flex items-center bg-white border rounded-md shadow-sm relative">
                  <button 
                     onClick={() => changeMonth(-1)}
@@ -343,6 +350,21 @@ export const Dashboard: React.FC = () => {
                    <ChevronRight size={14} />
                  </button>
                </div>
+
+               {/* 3. Đối soát tiền mặt (Moved to header) */}
+               <Button 
+                  variant="outline" 
+                  size="md" 
+                  icon={<Wallet size={14}/>} 
+                  onClick={() => setIsReconciliationOpen(true)}
+               >
+                  Đối soát tiền mặt
+               </Button>
+
+               {/* 4. Tạo thanh toán (Moved to header, Primary) */}
+               <Button variant="primary" size="md" icon={<CreditCard size={14}/>}>
+                  Tạo thanh toán
+               </Button>
             </div>
           </div>
 
@@ -381,9 +403,6 @@ export const Dashboard: React.FC = () => {
                   onClick={handleAddTransaction}
                >
                   Thêm sổ thu chi
-               </Button>
-               <Button variant="primary" size="md" icon={<CreditCard size={16}/>}>
-                  Tạo thanh toán
                </Button>
             </div>
           </div>
@@ -492,6 +511,16 @@ export const Dashboard: React.FC = () => {
           onSwitchToEdit={handleSwitchToEdit}
         />
       )}
+
+      {/* Reconciliation Sheet */}
+      <ReconciliationSheet 
+        isOpen={isReconciliationOpen} 
+        onClose={() => setIsReconciliationOpen(false)}
+        currentBalance={stats.totalRemaining}
+        monthLabel={`T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
+        month={currentDate.getMonth() + 1}
+        year={currentDate.getFullYear()}
+      />
     </div>
   );
 };

@@ -69,3 +69,23 @@ export interface FilterOptions {
   startDate?: string;
   endDate?: string;
 }
+
+// --- RECONCILIATION TYPES ---
+export interface ReconItem {
+  id: string;
+  description: string;
+  amount: number;
+}
+
+export interface ReconciliationReport {
+  id: string; // Format: recon_MM_YYYY
+  month: number;
+  year: number;
+  cashStorage: number;
+  cashWallet: number;
+  bankAccount: number;
+  existingMoney: number;
+  paidItems: ReconItem[];
+  debtItems: ReconItem[];
+  lastUpdated: string;
+}

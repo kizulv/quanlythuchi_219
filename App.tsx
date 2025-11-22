@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { db } from './services/database';
+import { Toaster } from 'sonner';
 
 /*
   NOTE: This application mimics the UI required (Bus Management Dashboard).
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   return (
     <div className="antialiased">
       <Dashboard />
+      <Toaster richColors position="top-right" expand={true} />
     </div>
   );
 };
