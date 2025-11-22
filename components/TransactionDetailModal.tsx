@@ -23,6 +23,7 @@ interface TransactionDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (updatedTransaction: Transaction) => void;
+  onDelete: (id: string) => void;
 }
 
 const defaultBreakdown: TransactionBreakdown = {
@@ -47,12 +48,14 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onDelete,
 }) => {
   const [breakdown, setBreakdown] =
     useState<TransactionBreakdown>(defaultBreakdown);
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
+  const [date, setDate] = useState("");
   
   // State for dynamic items
   const [otherRevenues, setOtherRevenues] = useState<OtherRevenueItem[]>([]);
@@ -84,6 +87,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       setBreakdown(currentBreakdown);
       setNote(transaction.note);
       setImageUrl(transaction.imageUrl);
+      setDate(transaction.date);
 
       // Initialize dynamic other revenue items
       let initRev: OtherRevenueItem[] = [];
@@ -337,6 +341,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
     const updated: Transaction = {
       ...transaction,
+      date: date, // Use editable date
       note: finalNote,
       breakdown: {
         ...breakdown,
@@ -360,7 +365,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   };
 
   // Common Grid column class - Compact Mode
-  // 1fr for label, 130px for input (reduced from 160px)
   const gridClass = "grid grid-cols-[1fr_130px] gap-2 items-center";
   const dynamicGridClass = "grid grid-cols-[28px_1fr_130px] gap-2 items-center";
 
@@ -370,7 +374,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         {/* Left Side: Image Viewer */}
         <div className="hidden md:flex md:w-6/12 bg-slate-900 relative flex-col group border-r border-slate-800">
           <div className="absolute top-4 left-4 text-white font-semibold z-10 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md border border-white/10 text-sm">
-            {transaction.date}
+            {date}
           </div>
 
           <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
@@ -421,11 +425,20 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           {/* Header */}
           <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
             <div>
-              <h2 className="font-bold text-base text-slate-900 leading-none">Chi tiết đối soát</h2>
+              <div className="flex items-center gap-2">
+                 <h2 className="font-bold text-base text-slate-900 leading-none">
+                    {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới đối soát'}
+                 </h2>
+              </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-medium">
-                  {transaction.date}
-                </span>
+                {/* Editable Date Field */}
+                <input 
+                  type="text" 
+                  value={date} 
+                  onChange={(e) => setDate(e.target.value)}
+                  className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-medium border-none focus:ring-1 focus:ring-primary w-24 text-center"
+                  placeholder="DD/MM/YYYY"
+                />
                 <span>•</span>
                 <span>Đơn vị: Nghìn đồng</span>
               </div>
@@ -747,21 +760,34 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-slate-100 bg-white flex gap-3 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.03)]">
-            <Button
-              variant="outline"
-              className="flex-1 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-10"
-              onClick={onClose}
-            >
-              Đóng
-            </Button>
-            <Button
-              variant="primary"
-              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10"
-              onClick={handleSave}
-            >
-              Lưu thay đổi
-            </Button>
+          <div className="p-4 border-t border-slate-100 bg-white flex justify-between gap-3 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.03)]">
+             {transaction.id && (
+                <Button
+                   variant="outline"
+                   className="border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700 h-10 px-3"
+                   onClick={() => onDelete(transaction.id)}
+                   title="Xóa phiếu này"
+                >
+                   <Trash2 size={16} />
+                </Button>
+             )}
+             
+             <div className="flex gap-3 flex-1 justify-end">
+                <Button
+                  variant="outline"
+                  className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-10 min-w-[100px]"
+                  onClick={onClose}
+                >
+                  Đóng
+                </Button>
+                <Button
+                  variant="primary"
+                  className="bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10 min-w-[120px]"
+                  onClick={handleSave}
+                >
+                  Lưu thay đổi
+                </Button>
+             </div>
           </div>
         </div>
       </div>

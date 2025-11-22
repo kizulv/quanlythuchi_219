@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
@@ -11,16 +12,17 @@ import {
   ChevronDown,
   LayoutDashboard, 
   FileText, 
-  Settings
+  Settings,
+  Trash2
 } from 'lucide-react';
-import { Transaction } from '../types';
+import { Transaction, TransactionStatus } from '../types';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { StatsCard } from './StatsCard';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { DashboardCharts } from './DashboardCharts';
-import { getTransactionsByMonth } from '../data/mockData';
 import { exportToExcel } from '../services/excelService';
+import { db } from '../services/database';
 
 export const Dashboard: React.FC = () => {
   // Initialize to November 2025 as requested
@@ -37,10 +39,9 @@ export const Dashboard: React.FC = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchData = async () => {
     setIsLoading(true);
-    // Simulate API call latency
-    setTimeout(() => {
+    try {
       const month = currentDate.getMonth() + 1; // 1-12
       const year = currentDate.getFullYear();
       
@@ -52,14 +53,29 @@ export const Dashboard: React.FC = () => {
         prevYear = year - 1;
       }
 
-      // Fetch from our "Mock Database"
-      const currentData = getTransactionsByMonth(month, year);
-      const prevData = getTransactionsByMonth(prevMonth, prevYear);
+      // Fetch from Database Service
+      const currentData = await db.getByMonth(month, year);
+      const prevData = await db.getByMonth(prevMonth, prevYear);
 
-      setTransactions(currentData);
+      // Sort by date (assuming string format dd/MM/yyyy)
+      // To sort correctly, we need to parse the date
+      const sortFn = (a: Transaction, b: Transaction) => {
+        const [da, ma, ya] = a.date.split('/').map(Number);
+        const [db, mb, yb] = b.date.split('/').map(Number);
+        return new Date(ya, ma - 1, da).getTime() - new Date(yb, mb - 1, db).getTime();
+      };
+
+      setTransactions(currentData.sort(sortFn));
       setPrevTransactions(prevData);
+    } catch (error) {
+      console.error("Failed to fetch data", error);
+    } finally {
       setIsLoading(false);
-    }, 300);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [currentDate]);
 
   // Filter transactions based on search term (Only for Table display)
@@ -72,9 +88,6 @@ export const Dashboard: React.FC = () => {
   }, [transactions, searchTerm]);
 
   // Calculate Statistics based on FULL data (Not filtered)
-  // Requirement update: 
-  // 1. "Tổng dư" = Sum of "Dư còn lại" (remainingBalance)
-  // 2. "Dư sau chia" = "Tổng dư" / 4
   const stats = useMemo(() => {
     const totalRemaining = transactions.reduce((acc, t) => acc + t.remainingBalance, 0);
     return {
@@ -96,8 +109,6 @@ export const Dashboard: React.FC = () => {
   const diffSplit = stats.splitByFour - prevStats.splitByFour;
 
   const formatCurrency = (val: number) => {
-    // Value stored is already in 'thousands' unit (e.g. 13400 is 13.400.000)
-    // We just need to format it with separators.
     return new Intl.NumberFormat('vi-VN').format(val);
   };
 
@@ -106,12 +117,68 @@ export const Dashboard: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(transactions.map(t => 
-      t.id === updatedTransaction.id ? updatedTransaction : t
-    ));
-    setIsModalOpen(false);
-    setSelectedTransaction(null);
+  const handleAddTransaction = () => {
+    // Create default empty transaction
+    const today = new Date();
+    const dayStr = today.getDate().toString().padStart(2, '0');
+    const monthStr = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+    const yearStr = currentDate.getFullYear();
+    
+    const newTransaction: Transaction = {
+      id: '', // Empty ID signifies new
+      date: `${dayStr}/${monthStr}/${yearStr}`,
+      revenue: 0,
+      sharedExpense: 0,
+      totalBalance: 0,
+      splitBalance: 0,
+      privateExpense: 0,
+      remainingBalance: 0,
+      note: '',
+      status: TransactionStatus.VERIFIED,
+      details: '',
+      isShared: true,
+      breakdown: {
+        revenueDown: 0,
+        revenueUp: 0,
+        revenueOther: 0,
+        expenseFuel: 0,
+        expenseFixed: 0,
+        expensePolice: 0,
+        expenseRepair: 0,
+        expenseOther: 0,
+        isShared: true,
+        busId: "25F-002.19",
+        partnerBusId: "25F-000.19"
+      }
+    };
+    setSelectedTransaction(newTransaction);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveTransaction = async (updatedTransaction: Transaction) => {
+    try {
+      await db.save(updatedTransaction);
+      await fetchData(); // Refresh data from DB
+      setIsModalOpen(false);
+      setSelectedTransaction(null);
+    } catch (error) {
+      alert("Có lỗi khi lưu dữ liệu.");
+      console.error(error);
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa bản ghi này không?")) {
+      try {
+        await db.delete(id);
+        await fetchData(); // Refresh data
+        setIsModalOpen(false);
+        setSelectedTransaction(null);
+      } catch (error) {
+        alert("Có lỗi khi xóa dữ liệu.");
+        console.error(error);
+      }
+    }
   };
 
   const changeMonth = (increment: number) => {
@@ -131,7 +198,6 @@ export const Dashboard: React.FC = () => {
       return;
     }
     const monthLabel = `${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
-    // Export filtered transactions if search is active, otherwise all transactions
     const dataToExport = searchTerm ? filteredTransactions : transactions;
     exportToExcel(dataToExport, monthLabel);
   };
@@ -139,21 +205,18 @@ export const Dashboard: React.FC = () => {
   // Generate last 12 months for dropdown, anchored at Nov 2025
   const last12Months = useMemo(() => {
     const months = [];
-    // Anchor at Nov 2025
     const anchorDate = new Date(2025, 10, 1); 
-    
     for (let i = 0; i < 12; i++) {
       const d = new Date(anchorDate);
       d.setMonth(anchorDate.getMonth() - i);
       months.push(d);
     }
-    // Sort chronologically for the calendar view
     return months.sort((a, b) => a.getTime() - b.getTime());
   }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex">
-      {/* Sidebar (Simplified for visual context) */}
+      {/* Sidebar */}
       <aside className="hidden md:flex w-16 flex-col items-center py-4 border-r bg-white space-y-4 fixed h-full z-10 left-0 top-0">
         <div className="p-2 bg-slate-900 rounded-lg text-white">
           <LayoutDashboard size={20} />
@@ -168,7 +231,6 @@ export const Dashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 md:ml-16 w-full">
-        {/* Removed max-w-[1600px] for full width layout */}
         <div className="w-full p-4 md:p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -207,7 +269,6 @@ export const Dashboard: React.FC = () => {
                       <ChevronDown size={14} className={`transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`}/>
                    </button>
                    
-                   {/* Calendar-like Month Picker */}
                    {isMonthPickerOpen && (
                      <>
                       <div 
@@ -255,7 +316,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Stats Cards - Uses FULL stats regardless of search */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <StatsCard 
               title="Tổng dư" 
@@ -283,7 +344,12 @@ export const Dashboard: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-3 w-full md:w-auto">
-               <Button variant="outline" size="md" icon={<Plus size={16}/>}>
+               <Button 
+                  variant="outline" 
+                  size="md" 
+                  icon={<Plus size={16}/>} 
+                  onClick={handleAddTransaction}
+               >
                   Thêm sổ thu chi
                </Button>
                <Button variant="primary" size="md" icon={<CreditCard size={16}/>}>
@@ -292,7 +358,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Table - Uses FILTERED transactions */}
+          {/* Table */}
           <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
@@ -358,8 +424,11 @@ export const Dashboard: React.FC = () => {
                         <Badge status={t.status} />
                       </td>
                       <td className="px-2 py-3 align-middle text-right">
-                         <button className="text-slate-400 hover:text-slate-600 p-1">
-                            <MoreVertical size={16} />
+                         <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteTransaction(t.id); }}
+                          className="text-slate-400 hover:text-red-600 p-1 transition-colors"
+                         >
+                            <Trash2 size={16} />
                          </button>
                       </td>
                     </tr>
@@ -378,7 +447,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Charts Section - Pass FULL transactions so charts remain static during search */}
+          {/* Charts */}
           {!isLoading && transactions.length > 0 && (
             <DashboardCharts 
               transactions={transactions} 
@@ -395,6 +464,7 @@ export const Dashboard: React.FC = () => {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveTransaction}
+          onDelete={handleDeleteTransaction}
         />
       )}
     </div>
