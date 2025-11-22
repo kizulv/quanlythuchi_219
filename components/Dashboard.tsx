@@ -163,6 +163,24 @@ export const Dashboard: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  // Check if a transaction exists for a given date
+  const handleCheckDateExists = (dateStr: string): Transaction | undefined => {
+    // Check in current transactions
+    let found = transactions.find(t => t.date === dateStr);
+    // If not found, checking prevTransactions (edge case if user selects date from prev month)
+    if (!found) {
+      found = prevTransactions.find(t => t.date === dateStr);
+    }
+    return found;
+  };
+
+  // Switch modal to edit mode for a specific transaction
+  const handleSwitchToEdit = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    // Ensure modal stays open (it should be already, but good for safety)
+    setIsModalOpen(true);
+  };
+
   const handleSaveTransaction = async (updatedTransaction: Transaction) => {
     try {
       await db.save(updatedTransaction);
@@ -470,6 +488,8 @@ export const Dashboard: React.FC = () => {
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveTransaction}
           onDelete={handleDeleteTransaction}
+          onCheckExists={handleCheckDateExists}
+          onSwitchToEdit={handleSwitchToEdit}
         />
       )}
     </div>

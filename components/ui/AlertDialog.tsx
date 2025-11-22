@@ -11,6 +11,7 @@ interface AlertDialogProps {
   cancelText?: string;
   confirmText?: string;
   variant?: 'default' | 'destructive';
+  showCancel?: boolean;
 }
 
 export const AlertDialog: React.FC<AlertDialogProps> = ({
@@ -21,7 +22,8 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
   description,
   cancelText = "Hủy",
   confirmText = "Tiếp tục",
-  variant = 'default'
+  variant = 'default',
+  showCancel = true
 }) => {
   if (!isOpen) return null;
 
@@ -44,14 +46,16 @@ export const AlertDialog: React.FC<AlertDialogProps> = ({
           </p>
         </div>
         
-        <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            className="mt-2 sm:mt-0 h-10"
-          >
-            {cancelText}
-          </Button>
+        <div className={`mt-6 flex flex-col-reverse sm:flex-row ${showCancel ? 'sm:justify-end' : 'justify-center'} sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0`}>
+          {showCancel && (
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              className="mt-2 sm:mt-0 h-10"
+            >
+              {cancelText}
+            </Button>
+          )}
           <Button 
             variant="primary" 
             className={`h-10 ${variant === 'destructive' ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm' : ''}`}

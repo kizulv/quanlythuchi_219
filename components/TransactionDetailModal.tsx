@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   X,
@@ -9,8 +10,10 @@ import {
   Plus,
   Trash2,
   Lock,
-  Calendar,
-  CalendarDays
+  Calendar as CalendarIcon,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus } from "../types";
 import { Button } from "./ui/Button";
@@ -26,6 +29,8 @@ interface TransactionDetailModalProps {
   onClose: () => void;
   onSave: (updatedTransaction: Transaction) => void;
   onDelete: (id: string) => void;
+  onCheckExists?: (date: string) => Transaction | undefined;
+  onSwitchToEdit?: (transaction: Transaction) => void;
 }
 
 const defaultBreakdown: TransactionBreakdown = {
@@ -45,20 +50,33 @@ const defaultBreakdown: TransactionBreakdown = {
   partnerBusId: "25F-000.19",
 };
 
+// --- Calendar Constants ---
+const VN_MONTHS = [
+  "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+  "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
+];
+const VN_WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
 export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   transaction,
   isOpen,
   onClose,
   onSave,
   onDelete,
+  onCheckExists,
+  onSwitchToEdit
 }) => {
   const [breakdown, setBreakdown] =
     useState<TransactionBreakdown>(defaultBreakdown);
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
-  const [date, setDate] = useState("");
   
+  // Date & Calendar State
+  const [date, setDate] = useState("");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(new Date()); // Month currently being viewed in calendar
+
   // State for dynamic items
   const [otherRevenues, setOtherRevenues] = useState<OtherRevenueItem[]>([]);
   const [otherExpenses, setOtherExpenses] = useState<OtherExpenseItem[]>([]);
@@ -76,8 +94,14 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   // Alert Dialog State
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   
+  // Collision Alert State (For Create New -> Switch)
+  const [showExistAlert, setShowExistAlert] = useState(false);
+  const [conflictTransaction, setConflictTransaction] = useState<Transaction | null>(null);
+
+  // Simple Alert State (For Edit -> Block)
+  const [showSimpleDuplicateAlert, setShowSimpleDuplicateAlert] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const datePickerRef = useRef<HTMLInputElement>(null);
 
   // Helper: Format value for display
   const formatForDisplay = (val: number) =>
@@ -87,51 +111,84 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const parseInput = (value: string) => 
     parseInt(value.replace(/,/g, "").replace(/\./g, ""), 10) || 0;
 
-  // Helper: Convert DD/MM/YYYY to YYYY-MM-DD for input type="date"
-  const parseDateToISO = (dateStr: string) => {
-     if(!dateStr) return '';
-     const parts = dateStr.split('/');
-     if(parts.length !== 3) return '';
-     const [d, m, y] = parts;
-     return `${y}-${m}-${d}`;
-  };
-
-  // Helper: Convert YYYY-MM-DD from input type="date" back to DD/MM/YYYY
-  const parseISOToDate = (isoStr: string) => {
-     if(!isoStr) return '';
-     const [y, m, d] = isoStr.split('-');
-     return `${d}/${m}/${y}`;
+  // Helper: Parse "DD/MM/YYYY" string to Date object
+  const parseDateString = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return new Date();
+    const [d, m, y] = parts.map(Number);
+    return new Date(y, m - 1, d);
   };
 
   // Helper: Get formatted date display (e.g. Thứ Hai, 02/11/2025)
   const getFormattedDateDisplay = (dateStr: string) => {
     if (!dateStr) return "Chọn ngày ghi sổ";
     try {
-      const [d, m, y] = dateStr.split('/');
-      const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+      const dateObj = parseDateString(dateStr);
       const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
       const dayName = days[dateObj.getDay()];
-      return `${dayName}, ${d}/${m}/${y}`;
+      return `${dayName}, ${dateStr}`;
     } catch (e) {
       return dateStr;
     }
   };
 
-  // Handle Date Picker Open
-  const handleOpenDatePicker = () => {
-    const picker = datePickerRef.current;
-    if (picker) {
-      try {
-        // Use modern showPicker API if available
-        if ('showPicker' in picker) {
-          (picker as any).showPicker();
-        } else {
-          picker.click();
-        }
-      } catch (e) {
-        picker.click();
+  // --- Calendar Logic Helpers ---
+  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    // 0 = Sunday, 1 = Monday ... 6 = Saturday
+    const day = new Date(year, month, 1).getDay();
+    // Convert to: 0 = Monday ... 6 = Sunday
+    return day === 0 ? 6 : day - 1;
+  };
+
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+  };
+
+  const handleSelectDate = (d: number) => {
+    const dayStr = d.toString().padStart(2, '0');
+    const monthStr = (viewDate.getMonth() + 1).toString().padStart(2, '0');
+    const yearStr = viewDate.getFullYear();
+    const newDateStr = `${dayStr}/${monthStr}/${yearStr}`;
+    
+    // Collision check 1: Create New Mode
+    // If this is a NEW transaction (id is empty)
+    if (!transaction.id && onCheckExists) {
+      const existing = onCheckExists(newDateStr);
+      if (existing) {
+        setConflictTransaction(existing);
+        setShowExistAlert(true);
+        setIsCalendarOpen(false);
+        return;
       }
     }
+
+    // Collision check 2: Edit Mode
+    // We allow selecting the date, but we will block saving in handleSave
+    
+    setDate(newDateStr);
+    setIsCalendarOpen(false);
+  };
+
+  const handleConfirmSwitchEdit = () => {
+    if (conflictTransaction && onSwitchToEdit) {
+      onSwitchToEdit(conflictTransaction);
+      setShowExistAlert(false);
+      setConflictTransaction(null);
+    }
+  };
+
+  const handleCancelSwitchEdit = () => {
+    setShowExistAlert(false);
+    setConflictTransaction(null);
+    // Optionally reopen calendar or just stay on current (create) state
   };
 
   useEffect(() => {
@@ -141,6 +198,11 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       setNote(transaction.note);
       setImageUrl(transaction.imageUrl);
       setDate(transaction.date);
+      
+      // Set initial view date for calendar
+      if (transaction.date) {
+        setViewDate(parseDateString(transaction.date));
+      }
 
       // Initialize dynamic other revenue items
       let initRev: OtherRevenueItem[] = [];
@@ -357,6 +419,26 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   };
 
   const handleSave = () => {
+    // CRITICAL: Check for duplicate date BEFORE saving
+    
+    if (onCheckExists) {
+        const existing = onCheckExists(date);
+        
+        // Case 1: New Transaction (Switch Offer)
+        if (!transaction.id && existing) {
+            setConflictTransaction(existing);
+            setShowExistAlert(true);
+            return; // STOP execution
+        }
+
+        // Case 2: Editing Transaction (Strict Block with Alert)
+        if (transaction.id && existing && existing.id !== transaction.id) {
+            // Found a record with same date but different ID
+            setShowSimpleDuplicateAlert(true);
+            return; // STOP execution
+        }
+    }
+
     // Generate auto content for note from dynamic items
     const autoDetails: string[] = [];
     
@@ -436,6 +518,88 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     onSave(updated);
   };
 
+  // Render Calendar Logic
+  const renderCalendar = () => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const daysInMonth = getDaysInMonth(year, month);
+    const startDay = getFirstDayOfMonth(year, month); // 0 (Mon) to 6 (Sun)
+    
+    const days = [];
+    // Padding for previous month
+    for (let i = 0; i < startDay; i++) {
+      days.push(<div key={`empty-${i}`} className="h-9 w-9" />);
+    }
+    
+    // Current month days
+    const selectedDateObj = parseDateString(date);
+    const isCurrentMonthSelected = selectedDateObj.getMonth() === month && selectedDateObj.getFullYear() === year;
+    const today = new Date();
+    const isCurrentMonthToday = today.getMonth() === month && today.getFullYear() === year;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isSelected = isCurrentMonthSelected && selectedDateObj.getDate() === d;
+      const isToday = isCurrentMonthToday && today.getDate() === d;
+      
+      days.push(
+        <button
+          key={d}
+          onClick={(e) => { e.stopPropagation(); handleSelectDate(d); }}
+          className={`
+            h-9 w-9 rounded-md flex items-center justify-center text-sm transition-all
+            ${isSelected 
+              ? "bg-slate-900 text-white shadow-md font-medium" 
+              : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+            }
+            ${!isSelected && isToday ? "text-blue-600 font-bold bg-blue-50" : ""}
+          `}
+        >
+          {d}
+        </button>
+      );
+    }
+
+    return (
+      <div 
+        className="absolute top-full left-0 mt-2 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-4 w-[300px] animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <button 
+            onClick={handlePrevMonth}
+            className="p-1 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div className="font-semibold text-sm text-slate-900">
+            {VN_MONTHS[month]} {year}
+          </div>
+          <button 
+            onClick={handleNextMonth}
+            className="p-1 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {/* Weekdays */}
+        <div className="grid grid-cols-7 mb-2">
+          {VN_WEEKDAYS.map((day) => (
+            <div key={day} className="h-9 w-9 flex items-center justify-center text-[10px] font-medium text-slate-400">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Days Grid */}
+        <div className="grid grid-cols-7 row-gap-1">
+          {days}
+        </div>
+      </div>
+    );
+  };
+
   // Common Grid column class - Compact Mode
   const gridClass = "grid grid-cols-[1fr_130px] gap-2 items-center";
   const dynamicGridClass = "grid grid-cols-[28px_1fr_130px] gap-2 items-center";
@@ -448,8 +612,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           <div className="hidden md:flex md:w-6/12 bg-slate-900 relative flex-col group border-r border-slate-800">
             {/* Date Overlay - Centered Top with Better Style */}
             <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-md px-6 py-2.5 rounded-full text-white shadow-2xl border border-white/20 flex items-center gap-2 pointer-events-none transition-all">
-               <Calendar size={16} className="text-white/80" />
-               <span className="font-bold text-lg tracking-wide font-mono">{date || "--/--/----"}</span>
+               <CalendarIcon size={16} className="text-white/80" />
+               <span className="font-bold text-sm tracking-wide">{date || "--/--/----"}</span>
             </div>
 
             <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
@@ -499,16 +663,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           <div className="w-full md:w-6/12 bg-white flex flex-col h-full text-slate-900">
             
             {/* HEADER SECTION - Redesigned */}
-            <div className="px-6 pt-5 pb-0 bg-white sticky top-0 z-10">
-               {/* Row 1: Title and Close */}
-               <div className="flex justify-between items-start mb-3">
+            <div className="px-4 pt-3 pb-0 bg-white sticky top-0 z-10">
+               {/* Row 1: Title and Close - ALIGNMENT FIXED HERE */}
+               <div className="flex justify-between items-center mb-1">
                   <div>
                      <h2 className="font-bold text-xl text-slate-900 leading-none">
-                        {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới đối soát'}
+                        {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới dữ liệu'}
                      </h2>
-                     <p className="text-sm text-slate-500 mt-1 font-medium">
-                        {transaction.id ? `Mã phiếu: #${transaction.id}` : 'Tạo phiếu mới'}
-                     </p>
                   </div>
                   <button
                     onClick={onClose}
@@ -525,35 +686,31 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                <div className="flex items-center justify-between pb-4 border-b border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                   
                   {/* Beautiful Date Picker - Click anywhere to open */}
-                  <div 
-                    className="relative cursor-pointer group"
-                    onClick={handleOpenDatePicker}
-                    title="Nhấn để thay đổi ngày"
-                  >
-                     <div className="flex items-center gap-3 bg-white border border-slate-200 hover:border-blue-500 hover:ring-4 hover:ring-blue-50 shadow-sm rounded-xl px-4 py-3 transition-all duration-200 min-w-[220px]">
-                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
+                  <div className="relative">
+                    {/* Trigger Button */}
+                     <div 
+                        className="flex items-center gap-3 bg-white border border-slate-200 hover:border-slate-400 hover:ring-4 hover:ring-slate-100 shadow-sm rounded-xl px-4 py-3 transition-all duration-200 min-w-[220px] cursor-pointer group select-none"
+                        onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                     >
+                        <div className="p-1 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-slate-900 group-hover:text-white transition-colors shadow-sm">
                            <CalendarDays size={22} strokeWidth={2.5} />
                         </div>
                         <div className="flex flex-col">
                            <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider leading-tight mb-0.5">Ngày ghi sổ</span>
-                           <span className={`text-base font-bold leading-tight ${date ? 'text-slate-800' : 'text-slate-400 italic'}`}>
+                           <span className={`text-[13px] font-bold leading-tight ${date ? 'text-slate-800' : 'text-slate-400 italic'}`}>
                               {getFormattedDateDisplay(date)}
                            </span>
                         </div>
                      </div>
                      
-                     {/* Hidden Input to Anchor the Browser's Native Picker */}
-                     <input 
-                        ref={datePickerRef}
-                        type="date"
-                        lang="vi"
-                        required
-                        value={parseDateToISO(date)} 
-                        onChange={(e) => {
-                            if(e.target.value) setDate(parseISOToDate(e.target.value));
-                        }}
-                        className="absolute bottom-0 left-0 w-full opacity-0 pointer-events-none -z-10"
-                     />
+                     {/* Custom Calendar Popup */}
+                     {isCalendarOpen && (
+                       <>
+                         {/* Backdrop to close on outside click */}
+                         <div className="fixed inset-0 z-40" onClick={() => setIsCalendarOpen(false)} />
+                         {renderCalendar()}
+                       </>
+                     )}
                   </div>
 
                   {/* Unit Note - Aligned Right */}
@@ -918,6 +1075,30 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         description="Hành động này không thể hoàn tác. Dữ liệu bản ghi sẽ bị xóa vĩnh viễn khỏi hệ thống."
         confirmText="Xóa bản ghi"
         variant="destructive"
+      />
+      
+      {/* Alert Dialog for Duplicate Date (New) -> Switch */}
+      <AlertDialog 
+        isOpen={showExistAlert}
+        onClose={handleCancelSwitchEdit}
+        onConfirm={handleConfirmSwitchEdit}
+        title="Dữ liệu ngày này đã tồn tại"
+        description={`Hệ thống tìm thấy dữ liệu cho ngày ${conflictTransaction?.date}. Bạn có muốn chuyển sang chế độ chỉnh sửa bản ghi đó không?`}
+        cancelText="Không"
+        confirmText="Đồng ý"
+        variant="default"
+      />
+
+      {/* Alert Dialog for Duplicate Date (Edit) -> Block */}
+      <AlertDialog 
+        isOpen={showSimpleDuplicateAlert}
+        onClose={() => setShowSimpleDuplicateAlert(false)}
+        onConfirm={() => setShowSimpleDuplicateAlert(false)}
+        title="Trùng dữ liệu"
+        description={`Ngày ${date} đã có dữ liệu. Vui lòng kiểm tra lại.`}
+        confirmText="Đã hiểu"
+        showCancel={false}
+        variant="default"
       />
     </>
   );
