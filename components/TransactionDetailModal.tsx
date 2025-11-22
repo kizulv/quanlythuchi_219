@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   X,
@@ -10,7 +9,7 @@ import {
   Plus,
   Trash2,
   Lock,
-  Calendar, // Added Calendar icon
+  Calendar,
   CalendarDays
 } from "lucide-react";
 import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus } from "../types";
@@ -78,6 +77,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const datePickerRef = useRef<HTMLInputElement>(null);
 
   // Helper: Format value for display
   const formatForDisplay = (val: number) =>
@@ -105,7 +105,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
   // Helper: Get formatted date display (e.g. Thứ Hai, 02/11/2025)
   const getFormattedDateDisplay = (dateStr: string) => {
-    if (!dateStr) return "Chọn ngày";
+    if (!dateStr) return "Chọn ngày ghi sổ";
     try {
       const [d, m, y] = dateStr.split('/');
       const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
@@ -114,6 +114,23 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       return `${dayName}, ${d}/${m}/${y}`;
     } catch (e) {
       return dateStr;
+    }
+  };
+
+  // Handle Date Picker Open
+  const handleOpenDatePicker = () => {
+    const picker = datePickerRef.current;
+    if (picker) {
+      try {
+        // Use modern showPicker API if available
+        if ('showPicker' in picker) {
+          (picker as any).showPicker();
+        } else {
+          picker.click();
+        }
+      } catch (e) {
+        picker.click();
+      }
     }
   };
 
@@ -429,9 +446,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           {/* Left Side: Image Viewer */}
           <div className="hidden md:flex md:w-6/12 bg-slate-900 relative flex-col group border-r border-slate-800">
-            {/* Date Overlay - Centered Top */}
-            <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-white font-medium shadow-lg border border-white/20 text-sm tracking-wide">
-               {date || "Chưa có ngày"}
+            {/* Date Overlay - Centered Top with Better Style */}
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-md px-6 py-2.5 rounded-full text-white shadow-2xl border border-white/20 flex items-center gap-2 pointer-events-none transition-all">
+               <Calendar size={16} className="text-white/80" />
+               <span className="font-bold text-lg tracking-wide font-mono">{date || "--/--/----"}</span>
             </div>
 
             <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
@@ -479,13 +497,19 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
           {/* Right Side: Form - COMPACT LAYOUT */}
           <div className="w-full md:w-6/12 bg-white flex flex-col h-full text-slate-900">
-            {/* Header - UPDATED LAYOUT */}
+            
+            {/* HEADER SECTION - Redesigned */}
             <div className="px-6 pt-5 pb-0 bg-white sticky top-0 z-10">
                {/* Row 1: Title and Close */}
-               <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-bold text-xl text-slate-900">
-                     {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới đối soát'}
-                  </h2>
+               <div className="flex justify-between items-start mb-3">
+                  <div>
+                     <h2 className="font-bold text-xl text-slate-900 leading-none">
+                        {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới đối soát'}
+                     </h2>
+                     <p className="text-sm text-slate-500 mt-1 font-medium">
+                        {transaction.id ? `Mã phiếu: #${transaction.id}` : 'Tạo phiếu mới'}
+                     </p>
+                  </div>
                   <button
                     onClick={onClose}
                     className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors -mr-2"
@@ -497,37 +521,48 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                {/* Divider Line */}
                <div className="h-px bg-slate-100 w-full mb-4"></div>
                
-               {/* Row 2: Date Picker and Unit Note */}
+               {/* Row 2: Date Picker and Unit Note - Flex Layout */}
                <div className="flex items-center justify-between pb-4 border-b border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  {/* BEAUTIFUL DATE PICKER TRIGGER */}
-                  <div className="relative group">
-                    <div className="flex items-center gap-3 bg-white border border-slate-200 hover:border-blue-400 hover:ring-4 hover:ring-blue-50 shadow-sm rounded-xl px-4 py-2.5 transition-all duration-200 cursor-pointer">
-                       <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100 transition-colors">
-                         <CalendarDays size={20} strokeWidth={2.5} />
-                       </div>
-                       <div className="flex flex-col">
-                         <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider leading-tight">Ngày ghi sổ</span>
-                         <span className="text-sm font-bold text-slate-800 leading-tight mt-0.5">
-                            {getFormattedDateDisplay(date)}
-                         </span>
-                       </div>
-                    </div>
-                    
-                    {/* Invisible Input Overlay */}
-                    <input 
-                      type="date"
-                      value={parseDateToISO(date)} 
-                      onChange={(e) => setDate(parseISOToDate(e.target.value))}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      title="Nhấn để chọn ngày"
-                      lang="vi"
-                    />
+                  
+                  {/* Beautiful Date Picker - Click anywhere to open */}
+                  <div 
+                    className="relative cursor-pointer group"
+                    onClick={handleOpenDatePicker}
+                    title="Nhấn để thay đổi ngày"
+                  >
+                     <div className="flex items-center gap-3 bg-white border border-slate-200 hover:border-blue-500 hover:ring-4 hover:ring-blue-50 shadow-sm rounded-xl px-4 py-3 transition-all duration-200 min-w-[220px]">
+                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
+                           <CalendarDays size={22} strokeWidth={2.5} />
+                        </div>
+                        <div className="flex flex-col">
+                           <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider leading-tight mb-0.5">Ngày ghi sổ</span>
+                           <span className={`text-base font-bold leading-tight ${date ? 'text-slate-800' : 'text-slate-400 italic'}`}>
+                              {getFormattedDateDisplay(date)}
+                           </span>
+                        </div>
+                     </div>
+                     
+                     {/* Hidden Input to Anchor the Browser's Native Picker */}
+                     <input 
+                        ref={datePickerRef}
+                        type="date"
+                        lang="vi"
+                        required
+                        value={parseDateToISO(date)} 
+                        onChange={(e) => {
+                            if(e.target.value) setDate(parseISOToDate(e.target.value));
+                        }}
+                        className="absolute bottom-0 left-0 w-full opacity-0 pointer-events-none -z-10"
+                     />
                   </div>
 
-                  {/* Unit Note */}
-                  <span className="text-xs text-slate-500 font-medium italic bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 ml-4">
-                    *Đơn vị: nghìn đồng
-                  </span>
+                  {/* Unit Note - Aligned Right */}
+                  <div className="flex flex-col items-end">
+                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Đơn vị tính</span>
+                     <span className="text-sm font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200">
+                        Nghìn đồng (1.000đ)
+                     </span>
+                  </div>
                </div>
             </div>
 
