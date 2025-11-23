@@ -343,12 +343,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <table className="w-full text-sm text-left table-fixed">
                   <thead className="bg-slate-50 text-slate-500 font-semibold sticky top-0 z-10 shadow-sm">
                     <tr>
-                      <th className="h-10 px-2 w-[40px] text-center">#</th>
-                      <th className="h-10 px-2 w-[90px]">Ngày</th>
-                      <th className="h-10 px-2 text-right">Tổng dư</th>
-                      <th className="h-10 px-2 text-right w-[110px]">Cổ tức</th>
-                      <th className="h-10 px-2 text-right w-[110px]">Giữ hộ</th>
-                      <th className="h-10 px-2 text-right hidden md:table-cell w-[100px]">Trạng thái</th>
+                      <th className="h-10 px-2 text-center w-[40px]">#</th>
+                      <th className="h-10 px-2 text-center">Ngày</th>
+                      <th className="h-10 px-2 text-right w-[90px]">Tổng dư</th>
+                      <th className="h-10 px-2 text-right w-[90px]">Cổ tức</th>
+                      <th className="h-10 px-2 text-right w-[90px]">Giữ hộ</th>
+                      <th className="h-10 px-2 text-center hidden md:table-cell w-[120px]">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -380,7 +380,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 onChange={() => toggleSelection(t.id)}
                              />
                           </td>
-                          <td className="px-2 py-3 font-medium text-slate-700 truncate">{t.date}</td>
+                          <td className="px-2 py-3 text-center font-medium text-slate-700 truncate">{t.date}</td>
                           <td className="px-2 py-3 text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
                           
                           {/* Shareholder Dividend Columns */}
@@ -391,7 +391,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             {isShareholding && heldShare > 0 ? formatCurrency(heldShare) : '-'}
                           </td>
 
-                          <td className="px-2 py-3 text-right hidden md:table-cell">
+                          <td className="px-2 py-3 text-center hidden md:table-cell">
                              <Badge status={t.status} />
                           </td>
                         </tr>
