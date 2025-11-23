@@ -11,9 +11,11 @@ import {
   Clock,
   ArrowUpRight,
   Menu,
-  Plus
+  Plus,
+  PieChart,
+  Wallet
 } from 'lucide-react';
-import { PaymentCycle, Transaction } from '../types';
+import { PaymentCycle, Transaction, Bus } from '../types';
 import { db } from '../services/database';
 import { Button } from './ui/Button';
 import { StatsCard } from './StatsCard';
@@ -40,6 +42,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCycle, setEditingCycle] = useState<PaymentCycle | undefined>(undefined);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [buses, setBuses] = useState<Bus[]>([]);
 
   // Delete State
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -49,9 +52,14 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
     try {
       const loadedCycles = await db.getPaymentCycles();
       setCycles(loadedCycles);
-      // Pre-fetch all transactions for edit modal needs (to show open items too)
+      
+      // Pre-fetch all transactions and buses for calculations
       const all = await db.getAll();
       setAllTransactions(all);
+      
+      const busList = await db.getBuses();
+      setBuses(busList);
+
     } catch (error) {
       console.error(error);
       toast.error("Không thể tải dữ liệu thanh toán");
@@ -64,22 +72,50 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
     fetchData();
   }, []);
 
+  // Helper function to calculate Dividend (Cổ tức) vs Held (Giữ hộ) for a cycle
+  const calculateCycleSplit = (cycle: PaymentCycle) => {
+    let dividend = 0; // Owner share
+    let held = 0;     // Shareholders share
+
+    cycle.transactionIds.forEach(tid => {
+        const t = allTransactions.find(tr => tr.id === tid);
+        if (!t) return;
+
+        const busId = t.breakdown?.busId;
+        const bus = buses.find(b => b.licensePlate === busId);
+        const balance = t.remainingBalance;
+
+        if (bus && bus.isShareholding) {
+            // Calculate Owner Share
+            dividend += (balance * bus.sharePercentage) / 100;
+            // Calculate Shareholders
+            bus.shareholders?.forEach(sh => {
+                held += (balance * sh.percentage) / 100;
+            });
+        } else {
+            // Non-shareholding or unknown bus -> assume 100% to owner (Dividend)
+            dividend += balance;
+        }
+    });
+
+    return { dividend, held };
+  };
+
   // Stats Logic
   const stats = useMemo(() => {
     const totalAmount = cycles.reduce((sum, c) => sum + c.totalAmount, 0);
     const totalCycles = cycles.length;
     const avgAmount = totalCycles > 0 ? totalAmount / totalCycles : 0;
     
-    // Growth vs last cycle
-    let growth = 0;
-    if (cycles.length >= 2) {
-       const latest = cycles[0].totalAmount;
-       const prev = cycles[1].totalAmount;
-       growth = latest - prev;
-    }
+    // Calculate Total Dividend accross all cycles
+    let totalDividend = 0;
+    cycles.forEach(c => {
+       const { dividend } = calculateCycleSplit(c);
+       totalDividend += dividend;
+    });
 
-    return { totalAmount, totalCycles, avgAmount, growth };
-  }, [cycles]);
+    return { totalAmount, totalCycles, avgAmount, totalDividend };
+  }, [cycles, allTransactions, buses]);
 
   // Filter Logic
   const filteredCycles = cycles.filter(c => 
@@ -134,7 +170,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
     }
   };
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(Math.round(val));
 
   return (
     <div className="w-full">
@@ -168,28 +204,35 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
           </div>
        </div>
 
-       {/* Stats Cards */}
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+       {/* Stats Cards - Updated to grid-cols-2 on mobile */}
+       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           <StatsCard 
              title="Tổng đã thanh toán" 
              value={stats.totalAmount} 
-             diff={stats.growth} 
+             diff={0} 
              icon={CheckCircle}
              variant="emerald"
+          />
+          <StatsCard 
+             title="Tổng cổ tức" 
+             value={stats.totalDividend} 
+             diff={0} 
+             icon={PieChart}
+             variant="blue"
           />
           <StatsCard 
              title="Số kỳ đã chốt" 
              value={stats.totalCycles} 
              diff={0} 
              icon={Calendar}
-             variant="blue"
+             variant="indigo"
           />
           <StatsCard 
-             title="Trung bình mỗi kỳ" 
+             title="TB mỗi kỳ" 
              value={stats.avgAmount} 
              diff={0} 
              icon={TrendingUp}
-             variant="indigo"
+             variant="slate"
           />
        </div>
 
@@ -210,66 +253,81 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
        {/* Table List */}
        <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
           <div className="overflow-x-auto flex-1 w-full custom-scrollbar">
-             <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1000px]">
+             <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1100px]">
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                    <tr>
-                      <th className="h-12 px-6 align-middle">Kỳ thanh toán</th>
-                      <th className="h-12 px-6 align-middle">Ngày tạo</th>
-                      <th className="h-12 px-6 align-middle text-center">Số lượng phiếu</th>
-                      <th className="h-12 px-6 align-middle text-right">Tổng tiền (VNĐ)</th>
-                      <th className="h-12 px-6 align-middle">Ghi chú</th>
-                      <th className="h-12 px-6 align-middle text-right">Thao tác</th>
+                      <th className="h-12 px-4 align-middle w-[140px]">Kỳ thanh toán</th>
+                      <th className="h-12 px-4 align-middle w-[120px]">Ngày tạo</th>
+                      <th className="h-12 px-4 align-middle text-center w-[60px]">Phiếu</th>
+                      <th className="h-12 px-4 align-middle text-right w-[120px]">Cổ tức</th>
+                      <th className="h-12 px-4 align-middle text-right w-[120px]">Giữ hộ</th>
+                      <th className="h-12 px-4 align-middle text-right w-[130px]">Tổng (VNĐ)</th>
+                      <th className="h-12 px-4 align-middle">Ghi chú</th>
+                      <th className="h-12 px-4 align-middle text-right w-[120px]">Thao tác</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                    {isLoading ? (
-                      <tr><td colSpan={6} className="p-8 text-center text-slate-500">Đang tải...</td></tr>
+                      <tr><td colSpan={8} className="p-8 text-center text-slate-500">Đang tải...</td></tr>
                    ) : filteredCycles.length === 0 ? (
-                      <tr><td colSpan={6} className="p-8 text-center text-slate-500 italic">Chưa có lịch sử thanh toán nào.</td></tr>
+                      <tr><td colSpan={8} className="p-8 text-center text-slate-500 italic">Chưa có lịch sử thanh toán nào.</td></tr>
                    ) : filteredCycles.map((cycle, index) => {
                       const isLatest = index === 0; // Cycles are sorted desc
+                      const split = calculateCycleSplit(cycle);
+
                       return (
                         <tr key={cycle.id} className="hover:bg-slate-50/80 transition-colors group">
-                           <td className="px-6 py-4 align-middle">
-                              <div className="flex items-center gap-3">
-                                 <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs border border-blue-100">
+                           <td className="px-4 py-4 align-middle">
+                              <div className="flex items-center gap-2">
+                                 <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs border border-blue-100">
                                     {cycle.id.split('.')[1]}
                                  </div>
                                  <div className="flex flex-col">
-                                    <span className="font-bold text-slate-900 text-base">Tháng {cycle.id.split('.')[1]}/{cycle.id.split('.')[0]}</span>
-                                    <span className="text-xs text-green-600 flex items-center gap-1 font-medium bg-green-50 px-1.5 py-0.5 rounded w-fit mt-0.5">
-                                       <CheckCircle size={10} /> Đã thanh toán
+                                    <span className="font-bold text-slate-900 text-sm">T{cycle.id.split('.')[1]}/{cycle.id.split('.')[0]}</span>
+                                    <span className="text-[10px] text-green-600 font-bold uppercase">
+                                       Đã thanh toán
                                     </span>
                                  </div>
                               </div>
                            </td>
-                           <td className="px-6 py-4 align-middle">
-                              <div className="flex items-center gap-2 text-slate-600">
+                           <td className="px-4 py-4 align-middle">
+                              <div className="flex items-center gap-1.5 text-slate-600">
                                  <Clock size={14} className="text-slate-400"/>
                                  {cycle.createdDate}
                               </div>
                            </td>
-                           <td className="px-6 py-4 align-middle text-center">
-                              <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-bold border border-slate-200">
+                           <td className="px-4 py-4 align-middle text-center">
+                              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-bold border border-slate-200">
                                  {cycle.transactionIds.length}
                               </span>
                            </td>
-                           <td className="px-6 py-4 align-middle text-right">
-                              <span className="font-bold text-slate-900 text-base">{formatCurrency(cycle.totalAmount)}</span>
+                           {/* Cổ tức */}
+                           <td className="px-4 py-4 align-middle text-right">
+                              <span className="font-semibold text-blue-600">{formatCurrency(split.dividend)}</span>
                            </td>
-                           <td className="px-6 py-4 align-middle max-w-[250px]">
-                              <p className="truncate text-slate-500 text-xs md:text-sm" title={cycle.note}>
+                           {/* Giữ hộ */}
+                           <td className="px-4 py-4 align-middle text-right">
+                              <span className="font-semibold text-orange-600">
+                                {split.held > 0 ? formatCurrency(split.held) : '-'}
+                              </span>
+                           </td>
+                           {/* Tổng */}
+                           <td className="px-4 py-4 align-middle text-right">
+                              <span className="font-bold text-slate-900 text-sm">{formatCurrency(cycle.totalAmount)}</span>
+                           </td>
+                           <td className="px-4 py-4 align-middle">
+                              <p className="truncate text-slate-500 text-xs w-full max-w-[200px]" title={cycle.note}>
                                  {cycle.note || '---'}
                               </p>
                            </td>
-                           <td className="px-6 py-4 align-middle text-right">
-                              <div className="flex justify-end gap-3">
+                           <td className="px-4 py-4 align-middle text-right">
+                              <div className="flex justify-end gap-2">
                                  {/* Edit Button */}
                                  <button 
                                     onClick={() => handleEdit(cycle, index)}
                                     disabled={!isLatest}
                                     className={`
-                                       h-10 w-10 flex items-center justify-center rounded-lg border transition-all shadow-sm
+                                       h-8 w-8 flex items-center justify-center rounded border transition-all shadow-sm
                                        ${isLatest 
                                           ? 'border-slate-200 bg-white text-slate-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200' 
                                           : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'
@@ -277,16 +335,16 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
                                     `}
                                     title={isLatest ? "Chỉnh sửa" : "Chỉ sửa được kỳ gần nhất"}
                                  >
-                                    <Edit size={18} />
+                                    <Edit size={14} />
                                  </button>
 
                                  {/* View Ledger Button */}
                                  <button 
                                     onClick={() => onNavigateToLedger(cycle.id)}
-                                    className="h-10 w-10 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
+                                    className="h-8 w-8 flex items-center justify-center rounded border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
                                     title="Xem sổ thu chi"
                                  >
-                                    <ArrowUpRight size={18} />
+                                    <ArrowUpRight size={14} />
                                  </button>
 
                                  {/* Delete Button */}
@@ -294,7 +352,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
                                     onClick={() => handleDeleteClick(cycle.id, index)}
                                     disabled={!isLatest}
                                     className={`
-                                       h-10 w-10 flex items-center justify-center rounded-lg border transition-all shadow-sm
+                                       h-8 w-8 flex items-center justify-center rounded border transition-all shadow-sm
                                        ${isLatest 
                                           ? 'border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200' 
                                           : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed'
@@ -302,7 +360,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
                                     `}
                                     title={isLatest ? "Xóa kỳ này" : "Chỉ xóa được kỳ gần nhất"}
                                  >
-                                    <Trash2 size={18} />
+                                    <Trash2 size={14} />
                                  </button>
                               </div>
                            </td>

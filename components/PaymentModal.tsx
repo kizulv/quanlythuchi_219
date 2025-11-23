@@ -139,6 +139,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       };
   }, [selectedTransactions, buses]);
 
+  // Helper to calculate row shares for display in table
+  const getRowShares = (t: Transaction) => {
+    const busId = t.breakdown?.busId;
+    const bus = buses.find(b => b.licensePlate === busId);
+    const balance = t.remainingBalance;
+    
+    if (bus && bus.isShareholding) {
+        const ownerShare = (balance * bus.sharePercentage) / 100;
+        let heldShare = 0;
+        bus.shareholders?.forEach(sh => {
+            heldShare += (balance * sh.percentage) / 100;
+        });
+        return { ownerShare, heldShare, isShareholding: true };
+    }
+    return { ownerShare: balance, heldShare: 0, isShareholding: false };
+  };
+
   // Use the calculated total based on shares as the payment amount
   // (Assuming the cycle clears the entire balance distributed among stakeholders)
   const paymentAmount = shareStats.totalCalculated;
@@ -223,48 +240,41 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
               {/* Totals Breakdown */}
               <div className="flex flex-col gap-2 shrink-0">
-                 <div className="flex flex-row items-center justify-between p-2.5 md:p-3 rounded-lg bg-white border border-slate-200 border-dashed">
-                    <span className="text-xs md:text-sm font-medium text-slate-500 flex items-center gap-2">
-                       <Wallet size={14} /> <span>Tổng dư</span>
-                    </span>
-                    <span className="text-sm md:text-base font-bold text-slate-700">
-                       {formatCurrency(totalRemaining)}
-                    </span>
-                 </div>
-
                  {/* UPDATED: Compact Shareholding Breakdown */}
                  <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {/* Total Header - Most important info first */}
-                    <div className="bg-blue-50/80 p-3 flex justify-between items-center border-b border-blue-100">
+                    {/* 1. Total Payment on Top (Blue Background) */}
+                    <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
                         <div className="flex items-center gap-2">
-                            <div className="p-1.5 bg-blue-100 text-blue-600 rounded">
-                                <PieChart size={14} />
+                            <div className="p-1.5 bg-white/20 rounded">
+                                <PieChart size={16} className="text-white" />
                             </div>
-                            <span className="text-xs font-bold text-blue-800 uppercase tracking-wide">Tổng thanh toán</span>
+                            <span className="text-xs font-bold uppercase tracking-wide opacity-90">Tổng thanh toán</span>
                         </div>
-                        <span className="text-lg font-bold text-blue-700">{formatCurrency(paymentAmount)}</span>
+                        <span className="text-xl font-bold">{formatCurrency(paymentAmount)}</span>
                     </div>
 
                     <div className="p-3 space-y-3">
-                        {/* Owner Share */}
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-slate-600 font-medium flex items-center gap-2">
-                                <UserCheck size={16} className="text-slate-400"/>
-                                Chia theo cổ phần
-                            </span>
-                            <span className="font-bold text-slate-800">{formatCurrency(shareStats.ownerTotal)}</span>
+                        {/* 2. Group Info: Owner */}
+                        <div className="flex justify-between items-center p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                             <div className="flex items-center gap-2">
+                                <div className="p-1 bg-white rounded-full border border-slate-200 shadow-sm text-blue-600">
+                                   <UserCheck size={14} />
+                                </div>
+                                <span className="text-sm font-semibold text-slate-700">Chủ xe giữ lại</span>
+                             </div>
+                             <span className="font-bold text-slate-900">{formatCurrency(shareStats.ownerTotal)}</span>
                         </div>
 
-                        {/* Shareholders List - Condensed */}
+                        {/* 3. Group Info: Shareholders */}
                         {Object.keys(shareStats.shareholderTotals).length > 0 && (
-                            <div className="pt-2 border-t border-slate-100 space-y-2">
-                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    <Users size={12} />
-                                    <span>Phần giữ hộ</span>
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
+                                <div className="px-3 py-2 bg-slate-100/50 border-b border-slate-200 flex items-center gap-2">
+                                     <Users size={12} className="text-slate-500"/>
+                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trả cổ đông</span>
                                 </div>
-                                <div className="bg-slate-50 rounded border border-slate-100 p-2 space-y-1.5">
+                                <div className="divide-y divide-slate-100">
                                     {Object.entries(shareStats.shareholderTotals).map(([name, amount]) => (
-                                        <div key={name} className="flex justify-between items-center text-xs">
+                                        <div key={name} className="flex justify-between items-center px-3 py-2 text-xs hover:bg-slate-100/50 transition-colors">
                                             <span className="text-slate-600 font-medium">{name}</span>
                                             <span className="font-bold text-slate-800">{formatCurrency(amount as number)}</span>
                                         </div>
@@ -328,25 +338,30 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-0 pb-20 md:pb-0">
+              {/* Added max-h-[500px] as requested */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-0 pb-20 md:pb-0 max-h-[500px]">
                 <table className="w-full text-sm text-left table-fixed">
                   <thead className="bg-slate-50 text-slate-500 font-semibold sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="h-10 px-2 w-[40px] text-center">#</th>
                       <th className="h-10 px-2 w-[90px]">Ngày</th>
-                      <th className="h-10 px-2 text-right">Còn lại</th>
-                      <th className="h-10 px-4 hidden md:table-cell">Ghi chú</th>
-                      <th className="h-10 px-2 text-right hidden md:table-cell w-[120px]">Trạng thái</th>
+                      <th className="h-10 px-2 text-right">Tổng dư</th>
+                      <th className="h-10 px-2 text-right w-[110px]">Cổ tức</th>
+                      <th className="h-10 px-2 text-right w-[110px]">Giữ hộ</th>
+                      <th className="h-10 px-2 text-right hidden md:table-cell w-[100px]">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {visibleTransactions.length === 0 ? (
-                       <tr><td colSpan={5} className="p-8 text-center text-slate-400">Không có bản ghi nào để chọn</td></tr>
+                       <tr><td colSpan={6} className="p-8 text-center text-slate-400">Không có bản ghi nào để chọn</td></tr>
                     ) : visibleTransactions.map(t => {
                       const isChecked = selectedIds.has(t.id);
                       // Highlight if item is currently part of the cycle being edited
                       const isInCurrentCycle = editingCycle?.transactionIds.includes(t.id);
                       
+                      // Calculate row shares
+                      const { ownerShare, heldShare, isShareholding } = getRowShares(t);
+
                       return (
                         <tr 
                           key={t.id} 
@@ -367,7 +382,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                           </td>
                           <td className="px-2 py-3 font-medium text-slate-700 truncate">{t.date}</td>
                           <td className="px-2 py-3 text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
-                          <td className="px-4 py-3 text-slate-500 truncate hidden md:table-cell" title={t.note}>{t.note}</td>
+                          
+                          {/* Shareholder Dividend Columns */}
+                          <td className="px-2 py-3 text-right text-blue-600 font-medium">
+                            {isShareholding ? formatCurrency(ownerShare) : '-'}
+                          </td>
+                          <td className="px-2 py-3 text-right text-orange-600 font-medium">
+                            {isShareholding && heldShare > 0 ? formatCurrency(heldShare) : '-'}
+                          </td>
+
                           <td className="px-2 py-3 text-right hidden md:table-cell">
                              <Badge status={t.status} />
                           </td>
