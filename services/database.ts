@@ -1,10 +1,12 @@
 
-import { Transaction, ReconciliationReport, TransactionStatus } from '../types';
+import { Transaction, ReconciliationReport, TransactionStatus, PaymentCycle } from '../types';
 import { MOCK_DATABASE } from '../data/mockData';
 import { MOCK_RECONCILIATION_REPORTS } from '../data/reconData';
+import { MOCK_PAYMENT_CYCLES } from '../data/paymentMonthData';
 
 const DB_KEY = 'busmanager_db_v1';
 const RECON_DB_KEY = 'busmanager_recon_v1';
+const CYCLES_DB_KEY = 'busmanager_cycles_v1';
 
 // Helper to parse date string "DD/MM/YYYY" to timestamp for sorting
 const parseDate = (dateStr: string): number => {
@@ -25,65 +27,86 @@ export const db = {
       console.log('Transaction Database initialized with mock data');
     }
 
-    // Init Reconciliation Collection with Mock Data from data/reconData.ts
+    // Init Reconciliation Collection
     if (!localStorage.getItem(RECON_DB_KEY)) {
       localStorage.setItem(RECON_DB_KEY, JSON.stringify(MOCK_RECONCILIATION_REPORTS));
       console.log('Reconciliation Database initialized with mock data');
     }
+
+    // Init Payment Cycles Collection
+    if (!localStorage.getItem(CYCLES_DB_KEY)) {
+      localStorage.setItem(CYCLES_DB_KEY, JSON.stringify(MOCK_PAYMENT_CYCLES));
+      console.log('Payment Cycles Database initialized with mock data');
+    }
   },
 
   getAll: async (): Promise<Transaction[]> => {
-    // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 100));
     const data = localStorage.getItem(DB_KEY);
     let transactions: Transaction[] = data ? JSON.parse(data) : [];
-    
-    // Database sắp xếp theo ngày tháng tăng dần từ thấp đến cao
     transactions.sort((a, b) => parseDate(a.date) - parseDate(b.date));
-    
     return transactions;
   },
 
-  getByMonth: async (month: number, year: number): Promise<Transaction[]> => {
-    const all = await db.getAll(); // getAll is now sorted
-    const monthStr = month.toString().padStart(2, '0');
-    // Matches dates ending in /MM/YYYY (e.g., 02/11/2025)
-    const suffix = `/${monthStr}/${year}`;
-    return all.filter(t => t.date.endsWith(suffix));
+  getPaymentCycles: async (): Promise<PaymentCycle[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const data = localStorage.getItem(CYCLES_DB_KEY);
+    let cycles: PaymentCycle[] = data ? JSON.parse(data) : [];
+    // Sort by ID descending (newest first)
+    cycles.sort((a, b) => b.id.localeCompare(a.id));
+    return cycles;
   },
 
   /**
-   * Lấy dữ liệu theo KỲ THANH TOÁN (Cycle)
-   * - Nếu kỳ đó đã thanh toán (có bản ghi paymentMonth = 'YYYY.MM'), trả về bản ghi đó.
-   * - Nếu kỳ đó chưa thanh toán (thường là tháng hiện tại), trả về tất cả bản ghi chưa thanh toán (status != PAID).
+   * Get data based on Cycle ID.
+   * If cycleId is provided: Fetch historical data linked to that cycle.
+   * If cycleId is NULL/Undefined: Fetch "Open" items (Unpaid).
+   */
+  getTransactionsByCycle: async (cycleId?: string): Promise<Transaction[]> => {
+    const allTransactions = await db.getAll();
+
+    if (cycleId) {
+      // Fetch historical cycle
+      const cycles = await db.getPaymentCycles();
+      const cycle = cycles.find(c => c.id === cycleId);
+      
+      if (cycle) {
+        // Filter transactions that are in the cycle's ID list
+        return allTransactions.filter(t => cycle.transactionIds.includes(t.id));
+      } else {
+        // Fallback: try to find by property if cycle record missing (migration safety)
+        return allTransactions.filter(t => t.paymentMonth === cycleId);
+      }
+    } else {
+      // Fetch Open/Unpaid Items
+      // Logic: Status != PAID OR paymentMonth is empty
+      return allTransactions.filter(t => t.status !== TransactionStatus.PAID && !t.paymentMonth);
+    }
+  },
+
+  /**
+   * Legacy method helper, maps month/year to cycle or open items
    */
   getCycleData: async (month: number, year: number, strict: boolean = false): Promise<Transaction[]> => {
-    const all = await db.getAll();
-    const cycleId = `${year}.${month.toString().padStart(2, '0')}`; // ex: 2025.10
+    // This method is kept for compatibility but redirected to new logic where possible
+    // strict=false implies "Current view" usually
+    const cycleId = `${year}.${month.toString().padStart(2, '0')}`;
+    
+    // Check if cycle exists
+    const cycles = await db.getPaymentCycles();
+    const exists = cycles.find(c => c.id === cycleId);
 
-    // 1. Tìm xem có bản ghi nào đã được gán cho kỳ thanh toán này chưa
-    const paidItems = all.filter(t => t.paymentMonth === cycleId);
-
-    if (paidItems.length > 0) {
-      return paidItems;
+    if (exists) {
+      return db.getTransactionsByCycle(cycleId);
+    } else {
+      if (strict) return []; // Asking for a specific past cycle that doesn't exist
+      return db.getTransactionsByCycle(undefined); // Return open items
     }
-
-    // 2. Nếu không có bản ghi đã thanh toán nào cho kỳ này
-    // Nếu strict mode (dùng cho so sánh quá khứ), trả về rỗng.
-    if (strict) {
-      return [];
-    }
-
-    // Nếu không strict (chế độ xem tháng hiện tại), trả về các bản ghi chưa thanh toán (backlog)
-    // Logic: Các bản ghi chưa có paymentMonth (hoặc rỗng) VÀ trạng thái KHÁC PAID
-    const unpaidItems = all.filter(t => (!t.paymentMonth || t.paymentMonth === "") && t.status !== TransactionStatus.PAID);
-    return unpaidItems;
   },
 
   search: async (query: string): Promise<Transaction[]> => {
-    // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 200));
-    const all = await db.getAll(); // getAll is now sorted
+    const all = await db.getAll();
     if (!query.trim()) return [];
     
     const lowerQuery = query.toLowerCase().trim();
@@ -96,31 +119,48 @@ export const db = {
 
   save: async (transaction: Transaction): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 300));
-    const all = await db.getAll(); // fetch sorted
+    const all = await db.getAll();
     const index = all.findIndex(t => t.id === transaction.id);
     
     if (index >= 0) {
-      // Update existing
       all[index] = transaction;
     } else {
-      // Insert new
-      // Generate a pseudo-ObjectId if missing
       if (!transaction.id) {
         transaction.id = `trans_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       }
       all.push(transaction);
     }
-    
-    // Save back to storage
     localStorage.setItem(DB_KEY, JSON.stringify(all));
   },
 
-  markAsPaid: async (ids: string[], month: number, year: number): Promise<void> => {
+  createPaymentCycle: async (ids: string[], month: number, year: number, totalAmount: number, note?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 400));
-    const all = await db.getAll();
+    
     const cycleId = `${year}.${month.toString().padStart(2, '0')}`;
+    const today = new Date();
+    const createdDate = `${today.getDate().toString().padStart(2,'0')}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getFullYear()}`;
 
-    // Update only matching IDs
+    // 1. Create PaymentCycle Record
+    const cycles = await db.getPaymentCycles();
+    const existingIndex = cycles.findIndex(c => c.id === cycleId);
+    
+    const newCycle: PaymentCycle = {
+      id: cycleId,
+      createdDate,
+      transactionIds: ids,
+      totalAmount,
+      note: note || `Thanh toán kỳ ${month}/${year}`
+    };
+
+    if (existingIndex >= 0) {
+       cycles[existingIndex] = newCycle;
+    } else {
+       cycles.push(newCycle);
+    }
+    localStorage.setItem(CYCLES_DB_KEY, JSON.stringify(cycles));
+
+    // 2. Update Transactions
+    const all = await db.getAll();
     const updatedAll = all.map(t => {
       if (ids.includes(t.id)) {
         return {
@@ -131,8 +171,84 @@ export const db = {
       }
       return t;
     });
+    localStorage.setItem(DB_KEY, JSON.stringify(updatedAll));
+  },
+
+  updatePaymentCycle: async (cycleId: string, newIds: string[], totalAmount: number, note?: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    // 1. Update Cycle Record
+    const cycles = await db.getPaymentCycles();
+    const cycleIndex = cycles.findIndex(c => c.id === cycleId);
+    
+    if (cycleIndex === -1) throw new Error("Cycle not found");
+    
+    const existingCycle = cycles[cycleIndex];
+
+    cycles[cycleIndex] = {
+      ...existingCycle,
+      transactionIds: newIds,
+      totalAmount: totalAmount,
+      note: note !== undefined ? note : existingCycle.note
+    };
+    localStorage.setItem(CYCLES_DB_KEY, JSON.stringify(cycles));
+
+    // 2. Update Transactions
+    // Logic: 
+    // - If transaction was in this cycle but NOT in newIds -> Revert to VERIFIED, remove paymentMonth
+    // - If transaction is in newIds -> Ensure it is PAID and paymentMonth is set
+    const all = await db.getAll();
+    
+    const updatedAll = all.map(t => {
+      // Case A: Is in the new list -> Must be PAID
+      if (newIds.includes(t.id)) {
+        return {
+          ...t,
+          status: TransactionStatus.PAID,
+          paymentMonth: cycleId
+        };
+      }
+      // Case B: Was in this cycle, but removed -> Revert to VERIFIED/AI (Open)
+      else if (t.paymentMonth === cycleId) {
+        return {
+          ...t,
+          status: TransactionStatus.VERIFIED, // or revert to AI_GENERATED if needed, but VERIFIED is safer
+          paymentMonth: undefined
+        };
+      }
+      // Case C: Unrelated -> Keep as is
+      return t;
+    });
 
     localStorage.setItem(DB_KEY, JSON.stringify(updatedAll));
+  },
+
+  deletePaymentCycle: async (cycleId: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    // 1. Remove Cycle Record
+    const cycles = await db.getPaymentCycles();
+    const newCycles = cycles.filter(c => c.id !== cycleId);
+    localStorage.setItem(CYCLES_DB_KEY, JSON.stringify(newCycles));
+
+    // 2. Revert Transactions to Unpaid (VERIFIED)
+    const all = await db.getAll();
+    const updatedAll = all.map(t => {
+      if (t.paymentMonth === cycleId) {
+        return {
+          ...t,
+          status: TransactionStatus.VERIFIED,
+          paymentMonth: undefined
+        };
+      }
+      return t;
+    });
+    localStorage.setItem(DB_KEY, JSON.stringify(updatedAll));
+  },
+
+  markAsPaid: async (ids: string[], month: number, year: number): Promise<void> => {
+    console.warn("markAsPaid is deprecated. Use createPaymentCycle.");
+    await db.createPaymentCycle(ids, month, year, 0);
   },
 
   delete: async (id: string): Promise<void> => {
@@ -142,13 +258,10 @@ export const db = {
     localStorage.setItem(DB_KEY, JSON.stringify(filtered));
   },
 
-  // --- RECONCILIATION METHODS ---
-  
   getReconciliation: async (month: number, year: number): Promise<ReconciliationReport | null> => {
     await new Promise(resolve => setTimeout(resolve, 150));
     const data = localStorage.getItem(RECON_DB_KEY);
     const allRecons: ReconciliationReport[] = data ? JSON.parse(data) : [];
-    
     const id = `recon_${month}_${year}`;
     return allRecons.find(r => r.id === id) || null;
   },

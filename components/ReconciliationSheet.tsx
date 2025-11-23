@@ -169,7 +169,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
       isOpen={isOpen} 
       onClose={onClose} 
       title={`Đối soát tiền mặt - ${monthLabel}`}
-      width="max-w-lg"
+      width="w-full md:max-w-lg"
       footer={
         <div className="space-y-3">
           {/* Result Float Section */}
@@ -251,7 +251,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
            
            {/* Dư xe */}
            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-slate-600">Tiền dư xe (Theo sổ sách / 2)</span>
+              <span className="text-sm font-medium text-slate-600">Tiền dư xe (Kỳ hiện tại / 2)</span>
               <span className="font-bold text-slate-900">{formatNumber(busSurplusTarget)}</span>
            </div>
 

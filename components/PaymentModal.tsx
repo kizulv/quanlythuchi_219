@@ -1,70 +1,106 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Calculator, ChevronDown, Check, Calendar, ListChecks } from 'lucide-react';
-import { Transaction, TransactionStatus } from '../types';
+import { X, Calculator, Calendar, DollarSign, Wallet, CheckCircle, CalendarCheck, Lock } from 'lucide-react';
+import { Transaction, TransactionStatus, PaymentCycle } from '../types';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  transactions: Transaction[]; // Full list passed from dashboard
-  onConfirm: (selectedIds: string[], month: number, year: number) => void;
+  transactions: Transaction[]; 
+  cycles: PaymentCycle[];
+  onConfirm: (selectedIds: string[], month: number, year: number, totalAmount: number, note: string) => void;
+  editingCycle?: PaymentCycle; // If provided, modal is in Edit Mode
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ 
   isOpen, 
   onClose, 
   transactions,
-  onConfirm
+  cycles,
+  onConfirm,
+  editingCycle
 }) => {
-  const today = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
-  
-  // Internal selection state
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [note, setNote] = useState('');
 
-  // Generate list of recent months for selection
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
-  const years = [2024, 2025, 2026];
-
-  // Filter out PAID transactions immediately
-  const visibleTransactions = transactions.filter(t => t.status !== TransactionStatus.PAID);
+  // Determine which transactions to show
+  const visibleTransactions = transactions.filter(t => {
+    if (editingCycle) {
+      // In Edit Mode, include unpaid items OR items belonging to this cycle
+      return t.status !== TransactionStatus.PAID || t.paymentMonth === editingCycle.id;
+    }
+    // In Create Mode, only unpaid items
+    return t.status !== TransactionStatus.PAID;
+  });
 
   useEffect(() => {
     if (isOpen) {
-      // Auto-select all visible (unpaid) items
-      const autoSelect = new Set<string>();
-      visibleTransactions.forEach(t => {
-        autoSelect.add(t.id);
-      });
-      setSelectedIds(autoSelect);
+      if (editingCycle) {
+        // EDIT MODE SETUP
+        const [yearStr, monthStr] = editingCycle.id.split('.');
+        setSelectedMonth(parseInt(monthStr));
+        setSelectedYear(parseInt(yearStr));
+        setNote(editingCycle.note || '');
+        
+        // Pre-select items that are currently in the cycle
+        const currentIds = new Set(editingCycle.transactionIds);
+        setSelectedIds(currentIds);
+      } else {
+        // CREATE MODE SETUP
+        // Auto-select all visible (open) transactions
+        const autoSelect = new Set<string>();
+        visibleTransactions.forEach(t => autoSelect.add(t.id));
+        setSelectedIds(autoSelect);
+
+        // Auto-increment month logic
+        const today = new Date();
+        let m = today.getMonth() + 1;
+        let y = today.getFullYear();
+
+        const checkExists = (checkM: number, checkY: number) => {
+           const id = `${checkY}.${checkM.toString().padStart(2, '0')}`;
+           return cycles.some(c => c.id === id);
+        }
+
+        let safetyCounter = 0;
+        while (checkExists(m, y) && safetyCounter < 12) {
+          m++;
+          if (m > 12) {
+            m = 1;
+            y++;
+          }
+          safetyCounter++;
+        }
+
+        setSelectedMonth(m);
+        setSelectedYear(y);
+        setNote(`Thanh toán kỳ ${m}/${y}`);
+      }
     }
-  }, [isOpen, transactions]);
+  }, [isOpen, editingCycle]);
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN').format(val);
-  };
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
 
-  // Calculate stats based on LOCAL SELECTION from Visible items only
   const selectedTransactions = visibleTransactions.filter(t => selectedIds.has(t.id));
+  
   const totalRemaining = selectedTransactions.reduce((sum, t) => sum + t.remainingBalance, 0);
-  const splitByFour = totalRemaining / 4;
+  
+  // LOGIC: Payment Amount is STRICTLY Total Remaining divided by 4
+  const paymentAmount = Math.floor(totalRemaining / 4);
   const count = selectedTransactions.length;
 
   const handleConfirm = () => {
-    onConfirm(Array.from(selectedIds), selectedMonth, selectedYear);
+    onConfirm(Array.from(selectedIds), selectedMonth, selectedYear, paymentAmount, note);
   };
 
-  // Selection Handlers
   const toggleSelection = (id: string) => {
     const newSet = new Set(selectedIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
     setSelectedIds(newSet);
   };
 
@@ -80,25 +116,27 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 md:p-4">
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={onClose}
       />
 
-      {/* Modal Content - WIDER now (max-w-4xl) */}
-      <div className="relative z-[70] w-full max-w-4xl bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-200 max-h-[90vh] flex flex-col">
+      <div className="relative z-[70] w-full max-w-5xl bg-white md:rounded-xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-200 h-[100dvh] md:h-auto md:max-h-[90vh] flex flex-col">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+        <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg shadow-sm">
-              <Calculator size={24} />
+            <div className="p-2 bg-slate-100 text-slate-900 rounded-lg shadow-sm">
+              <Calculator size={20} className="md:w-6 md:h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Tạo phiếu thanh toán</h2>
-              <p className="text-sm text-slate-500 font-medium">Chọn các bản ghi để chốt sổ và thanh toán</p>
+              <h2 className="text-lg md:text-xl font-bold text-slate-900">
+                {editingCycle ? 'Cập nhật thanh toán' : 'Tạo thanh toán'}
+              </h2>
+              <p className="text-xs md:text-sm text-slate-500 font-medium hidden md:block">
+                {editingCycle ? 'Thêm hoặc bớt các bản ghi cho kỳ này' : 'Chọn các bản ghi để chốt sổ'}
+              </p>
             </div>
           </div>
           <button 
@@ -109,12 +147,90 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </button>
         </div>
 
-        {/* Body - Scrollable */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+        {/* Body Container */}
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
            
-           {/* Left Panel: List Checkbox Table */}
-           <div className="flex-1 flex flex-col border-r border-slate-100 bg-white min-h-0">
-              <div className="p-4 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+           {/* Right Panel: Summary */}
+           <div className="w-full md:w-[340px] bg-slate-50 p-2 md:p-6 flex flex-col gap-1 md:gap-4 shadow-[-5px_0_15px_-3px_rgba(0,0,0,0.05)] z-20 shrink-0 order-first md:order-last border-b md:border-b-0 border-slate-200">
+              
+              {/* Payment Cycle Info */}
+              <div className="relative overflow-hidden rounded-lg md:rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 p-2.5 md:p-5 text-white shadow-lg shrink-0 flex items-center justify-between md:block">
+                <div className="absolute right-[-10px] top-[-10px] opacity-10 pointer-events-none">
+                   <CalendarCheck size={80} className="md:w-[100px] md:h-[100px]" />
+                </div>
+                
+                <div className="relative z-10 flex items-center gap-2 md:mb-2 opacity-90 md:opacity-100">
+                    <Calendar size={14} className="text-slate-300 md:text-white md:w-4 md:h-4" />
+                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider">Kỳ thanh toán</span>
+                    {editingCycle && <Lock size={12} className="text-orange-300 ml-1" />}
+                </div>
+                
+                <div className="relative z-10 text-base md:text-2xl font-bold tracking-tight">
+                    Tháng {selectedMonth}/{selectedYear}
+                </div>
+              </div>
+
+              {/* Totals Breakdown */}
+              <div className="flex flex-col gap-1 md:gap-3 shrink-0">
+                 <div className="flex flex-row items-center justify-between p-2.5 md:p-3 rounded-lg bg-white border border-slate-200 border-dashed">
+                    <span className="text-xs md:text-sm font-medium text-slate-500 flex items-center gap-2">
+                       <Wallet size={14} /> <span>Tổng dư</span>
+                    </span>
+                    <span className="text-sm md:text-base font-bold text-slate-700">
+                       {formatCurrency(totalRemaining)}
+                    </span>
+                 </div>
+
+                 <div className="bg-blue-600 p-3 md:p-5 rounded-lg md:rounded-xl shadow-lg text-white relative overflow-hidden flex flex-col justify-center min-h-[70px] md:min-h-[80px]">
+                    <div className="absolute top-[-5px] right-[-5px] p-2 opacity-10 block pointer-events-none">
+                       <DollarSign size={60} className="md:w-[80px] md:h-[80px] text-white" />
+                    </div>
+                    
+                    <p className="text-[10px] md:text-xs font-bold text-blue-100 uppercase tracking-wider mb-0.5 md:mb-1 flex items-center gap-1 z-10 relative">
+                       Thanh toán (Chia 4)
+                    </p>
+                    <p className="text-2xl md:text-3xl font-bold tracking-tight z-10 relative">{formatCurrency(paymentAmount)}</p>
+                    <p className="text-[10px] md:text-xs text-blue-100 mt-0.5 md:mt-1 opacity-80 z-10 relative">
+                       {count} bản ghi
+                    </p>
+                 </div>
+              </div>
+
+              {/* Note Input - MOVED HERE BELOW THE PAYMENT CARD */}
+              <div className="flex flex-col gap-1.5 md:mt-2">
+                 <label className="text-xs font-semibold text-slate-600">Ghi chú kỳ thanh toán</label>
+                 <textarea
+                    className="flex min-h-[60px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 resize-none shadow-sm transition-all"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="VD: Thanh toán đợt 1..."
+                 />
+              </div>
+              
+              <div className="hidden md:flex gap-3 pt-2 mt-auto">
+                 <Button 
+                   variant="outline" 
+                   onClick={onClose} 
+                   className="h-12 border-slate-300 font-medium flex-1"
+                 >
+                   Hủy
+                 </Button>
+                 <Button 
+                  variant="primary" 
+                  className="flex-1 h-12 bg-slate-900 hover:bg-slate-800 shadow-xl font-bold"
+                  onClick={handleConfirm}
+                  disabled={count === 0}
+                 >
+                   <CheckCircle size={18} className="mr-2" />
+                   {editingCycle ? "Lưu thay đổi" : "Xác nhận"}
+                 </Button>
+              </div>
+
+           </div>
+
+           {/* Left Panel: Table */}
+           <div className="flex-1 flex flex-col border-r border-slate-100 bg-white min-h-0 order-last md:order-first">
+              <div className="p-3 md:p-4 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
                   <div className="flex items-center gap-2">
                       <input 
                         type="checkbox" 
@@ -124,7 +240,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         id="select-all-modal"
                       />
                       <label htmlFor="select-all-modal" className="text-sm font-semibold text-slate-700 cursor-pointer select-none">
-                        Chọn tất cả ({visibleTransactions.length})
+                        Tất cả ({visibleTransactions.length})
                       </label>
                   </div>
                   <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
@@ -132,32 +248,36 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </span>
               </div>
 
-              <div className="overflow-y-auto flex-1 custom-scrollbar p-0">
-                <table className="w-full text-sm text-left whitespace-nowrap">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-0 pb-20 md:pb-0">
+                <table className="w-full text-sm text-left table-fixed">
                   <thead className="bg-slate-50 text-slate-500 font-semibold sticky top-0 z-10 shadow-sm">
                     <tr>
-                      <th className="h-10 px-4 w-[40px]"></th>
-                      <th className="h-10 px-2">Ngày</th>
-                      <th className="h-10 px-2 text-right">Dư còn lại</th>
-                      <th className="h-10 px-4">Ghi chú</th>
-                      <th className="h-10 px-2 text-right">Trạng thái</th>
+                      <th className="h-10 px-2 w-[40px] text-center">#</th>
+                      <th className="h-10 px-2 w-[90px]">Ngày</th>
+                      <th className="h-10 px-2 text-right">Còn lại</th>
+                      <th className="h-10 px-4 hidden md:table-cell">Ghi chú</th>
+                      <th className="h-10 px-2 text-right hidden md:table-cell w-[120px]">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {visibleTransactions.length === 0 ? (
-                       <tr><td colSpan={5} className="p-8 text-center text-slate-400">Không có bản ghi nào chưa thanh toán</td></tr>
+                       <tr><td colSpan={5} className="p-8 text-center text-slate-400">Không có bản ghi nào để chọn</td></tr>
                     ) : visibleTransactions.map(t => {
                       const isChecked = selectedIds.has(t.id);
+                      // Highlight if item is currently part of the cycle being edited
+                      const isInCurrentCycle = editingCycle?.transactionIds.includes(t.id);
+                      
                       return (
                         <tr 
                           key={t.id} 
                           className={`
                              transition-colors cursor-pointer
                              ${isChecked ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-slate-50'}
+                             ${isInCurrentCycle ? 'bg-green-50/30' : ''}
                           `}
                           onClick={() => toggleSelection(t.id)}
                         >
-                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                              <input 
                                 type="checkbox" 
                                 className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -165,10 +285,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 onChange={() => toggleSelection(t.id)}
                              />
                           </td>
-                          <td className="px-2 py-3 font-medium text-slate-700">{t.date}</td>
+                          <td className="px-2 py-3 font-medium text-slate-700 truncate">{t.date}</td>
                           <td className="px-2 py-3 text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
-                          <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]" title={t.note}>{t.note}</td>
-                          <td className="px-2 py-3 text-right">
+                          <td className="px-4 py-3 text-slate-500 truncate hidden md:table-cell" title={t.note}>{t.note}</td>
+                          <td className="px-2 py-3 text-right hidden md:table-cell">
                              <Badge status={t.status} />
                           </td>
                         </tr>
@@ -179,81 +299,24 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
            </div>
 
-           {/* Right Panel: Summary & Actions */}
-           <div className="w-full md:w-80 bg-slate-50 p-6 flex flex-col gap-6 shrink-0 overflow-y-auto">
-              
-              {/* Month Selection */}
-              <div className="space-y-3 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <Calendar size={16} className="text-slate-400"/> 
-                  Kỳ thanh toán
-                </h3>
-                <div className="space-y-2">
-                   <div className="relative">
-                      <select
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                        className="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-md text-sm font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                      >
-                        {months.map(m => (
-                          <option key={m} value={m}>Tháng {m}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                   </div>
-                   <div className="relative">
-                      <select
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        className="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-md text-sm font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                      >
-                        {years.map(y => (
-                          <option key={y} value={y}>Năm {y}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                   </div>
-                </div>
-              </div>
-
-              {/* Summary Cards */}
-              <div className="space-y-3">
-                 <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Tổng số lượng</p>
-                    <p className="text-xl font-bold text-slate-900">{count} <span className="text-sm font-normal text-slate-500">bản ghi</span></p>
-                 </div>
-
-                 <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Tổng dư chọn</p>
-                    <p className="text-xl font-bold text-slate-900">{formatCurrency(totalRemaining)}</p>
-                 </div>
-
-                 <div className="bg-blue-600 p-5 rounded-lg shadow-lg text-white relative overflow-hidden">
-                    <div className="absolute -right-6 -top-6 w-24 h-24 bg-white opacity-10 rounded-full"></div>
-                    <p className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-1">Dư còn lại / 4</p>
-                    <p className="text-2xl font-bold tracking-tight">{formatCurrency(splitByFour)}</p>
-                    <p className="text-[10px] text-blue-200 mt-1 font-medium">Thực nhận mỗi phần</p>
-                 </div>
-              </div>
-              
-              {/* Spacer to push buttons down if needed */}
-              <div className="flex-1"></div>
-
-              {/* Actions */}
-              <div className="flex flex-col gap-3 pt-4 border-t border-slate-200">
-                 <Button 
-                  variant="primary" 
-                  className="w-full h-11 bg-slate-900 hover:bg-slate-800 shadow-md"
-                  onClick={handleConfirm}
-                  disabled={count === 0}
-                 >
-                   Xác nhận thanh toán
-                 </Button>
-                 <Button variant="outline" onClick={onClose} className="w-full h-10 border-slate-300">
-                   Hủy bỏ
-                 </Button>
-              </div>
-
+           {/* Mobile Floating Buttons */}
+           <div className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 z-[100] flex gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
+              <Button 
+                variant="outline" 
+                onClick={onClose} 
+                className="h-11 border-slate-300 font-medium flex-1 text-sm"
+              >
+                Hủy
+              </Button>
+              <Button 
+                variant="primary" 
+                className="flex-1 h-11 bg-slate-900 hover:bg-slate-800 shadow-lg font-bold text-sm"
+                onClick={handleConfirm}
+                disabled={count === 0}
+              >
+                <CheckCircle size={16} className="mr-2" />
+                {editingCycle ? "Lưu" : "Xác nhận"}
+              </Button>
            </div>
         </div>
       </div>

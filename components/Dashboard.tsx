@@ -4,90 +4,122 @@ import {
   Search, 
   Plus, 
   CreditCard, 
-  MoreVertical, 
   Calendar, 
   Download, 
-  ChevronLeft, 
-  ChevronRight, 
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard, 
   FileText, 
   Settings,
-  Trash2,
-  Wallet,
   Bus,
-  CheckSquare
+  Wallet,
+  History,
+  PieChart,
+  Database,
+  Calculator,
+  Edit,
+  Menu,
+  Users,
+  X 
 } from 'lucide-react';
-import { Transaction, TransactionStatus } from '../types';
+import { Transaction, TransactionStatus, PaymentCycle } from '../types';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { StatsCard } from './StatsCard';
 import { TransactionDetailModal } from './TransactionDetailModal';
-import { DashboardCharts } from './DashboardCharts';
 import { exportToExcel } from '../services/excelService';
 import { db } from '../services/database';
 import { ReconciliationSheet } from './ReconciliationSheet';
 import { PaymentModal } from './PaymentModal';
+import { PaymentManager } from './PaymentManager';
 import { toast } from 'sonner';
 
+type ViewState = 'ledger' | 'payments';
+
 export const Dashboard: React.FC = () => {
-  // Initialize to November 2025 as requested
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1)); // Month is 0-indexed (10 = Nov)
+  // Navigation State
+  const [currentView, setCurrentView] = useState<ViewState>('ledger');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // View State (Ledger)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [prevTransactions, setPrevTransactions] = useState<Transaction[]>([]); // Previous month data
+  const [prevTransactions, setPrevTransactions] = useState<Transaction[]>([]);
+  const [cycles, setCycles] = useState<PaymentCycle[]>([]);
+  
+  // All Time Stats State
+  const [allTimeStats, setAllTimeStats] = useState({ total: 0, split: 0 });
+  
+  // Open Balance State (Specifically for Reconciliation)
+  const [openBalance, setOpenBalance] = useState(0);
+  
+  // Selection State
+  // null means "Current Open Cycle" (Unpaid items). string is a specific historical cycle ID.
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Month Picker State
-  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  // Dropdown State
+  const [isCyclePickerOpen, setIsCyclePickerOpen] = useState(false);
   
   // Modal State
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Sheet State
   const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
-
-  // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  
+  // Payment Modal specific state (for edit mode)
+  const [paymentModalTransactions, setPaymentModalTransactions] = useState<Transaction[]>([]);
+  const [editingCycle, setEditingCycle] = useState<PaymentCycle | undefined>(undefined);
 
-  const fetchData = async () => {
+  // Helper to get sort function
+  const sortFn = (a: Transaction, b: Transaction) => {
+    const [da, ma, ya] = a.date.split('/').map(Number);
+    const [db, mb, yb] = b.date.split('/').map(Number);
+    return new Date(ya, ma - 1, da).getTime() - new Date(yb, mb - 1, db).getTime();
+  };
+
+  // Initial Data Load & Responsive Check
+  useEffect(() => {
+    const loadMetadata = async () => {
+      const loadedCycles = await db.getPaymentCycles();
+      setCycles(loadedCycles);
+    };
+    loadMetadata();
+  }, [isPaymentModalOpen, currentView]); // Reload cycles when payment modal closes or view changes
+
+  // Transaction Data Load
+  const fetchTransactions = async () => {
+    // Only fetch if we are in Ledger view or need background data
+    if (currentView !== 'ledger') return;
+
     setIsLoading(true);
     try {
-      // Sort Helper: Sort by date ascending
-      const sortFn = (a: Transaction, b: Transaction) => {
-        const [da, ma, ya] = a.date.split('/').map(Number);
-        const [db, mb, yb] = b.date.split('/').map(Number);
-        return new Date(ya, ma - 1, da).getTime() - new Date(yb, mb - 1, db).getTime();
-      };
-
-      // Logic: If searching, search GLOBAL. If not, get BY PAYMENT CYCLE.
       if (searchTerm.trim()) {
         const searchResults = await db.search(searchTerm);
         setTransactions(searchResults.sort(sortFn));
-        // No comparison for search
         setPrevTransactions([]);
       } else {
-        const month = currentDate.getMonth() + 1; // 1-12
-        const year = currentDate.getFullYear();
-        
-        // Calculate Previous Month
-        let prevMonth = month - 1;
-        let prevYear = year;
-        if (prevMonth === 0) {
-          prevMonth = 12;
-          prevYear = year - 1;
+        // Fetch Main Data based on Selection
+        const data = await db.getTransactionsByCycle(selectedCycleId || undefined);
+        setTransactions(data.sort(sortFn));
+
+        // Fetch Previous Data for comparison (Logic: find previous cycle in list)
+        let prevData: Transaction[] = [];
+        if (selectedCycleId) {
+           // Find current index
+           const idx = cycles.findIndex(c => c.id === selectedCycleId);
+           if (idx !== -1 && idx < cycles.length - 1) {
+              const prevCycleId = cycles[idx + 1].id;
+              prevData = await db.getTransactionsByCycle(prevCycleId);
+           }
+        } else {
+           // If current (open), compare with the most recent closed cycle
+           if (cycles.length > 0) {
+              prevData = await db.getTransactionsByCycle(cycles[0].id);
+           }
         }
-
-        // Fetch from Database Service using getCycleData
-        // false for strict param on current month allows it to fallback to "Open Items" if no paid items exist
-        const currentData = await db.getCycleData(month, year, false); 
-        
-        // For comparison, we want strictly the previous cycle's data
-        // However, if the previous cycle doesn't exist (e.g. too far back), it returns empty.
-        const prevData = await db.getCycleData(prevMonth, prevYear, false);
-
-        setTransactions(currentData.sort(sortFn));
         setPrevTransactions(prevData);
       }
     } catch (error) {
@@ -98,67 +130,163 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    // Debounce search to avoid too many requests while typing
     const timer = setTimeout(() => {
-      fetchData();
+      fetchTransactions();
     }, 400);
-
     return () => clearTimeout(timer);
-  }, [currentDate, searchTerm]);
+  }, [selectedCycleId, searchTerm, cycles, currentView]); 
 
+  // Special Effect: Always Calculate Open Balance (Current Cycle) for Reconciliation
+  useEffect(() => {
+     const calcOpenBalance = async () => {
+        const openItems = await db.getTransactionsByCycle(undefined);
+        const total = openItems.reduce((acc, t) => acc + t.remainingBalance, 0);
+        setOpenBalance(total);
+     };
+     calcOpenBalance();
+  }, [transactions, isReconciliationOpen]);
 
-  const handleOpenPaymentModal = () => {
-    if (transactions.length === 0) {
-      toast.error("Không có dữ liệu để tạo thanh toán.");
+  // Calculate Global All-Time Stats
+  useEffect(() => {
+    const fetchGlobalStats = async () => {
+       const all = await db.getAll();
+       const total = all.reduce((sum, t) => sum + t.remainingBalance, 0);
+       setAllTimeStats({
+         total,
+         split: total / 4
+       });
+    };
+    fetchGlobalStats();
+  }, [transactions]); 
+
+  // Identify if we are viewing the latest cycle (to allow editing)
+  const isLatestCycle = useMemo(() => {
+     if (!selectedCycleId) return false;
+     if (cycles.length === 0) return false;
+     return selectedCycleId === cycles[0].id;
+  }, [selectedCycleId, cycles]);
+
+  // --- CYCLE NAVIGATION LOGIC ---
+  const currentCycleIndex = useMemo(() => {
+    if (!selectedCycleId) return -1; // -1 represents "Current/Open"
+    return cycles.findIndex(c => c.id === selectedCycleId);
+  }, [selectedCycleId, cycles]);
+
+  const handlePrevCycle = () => {
+    // Moving further back in time (increasing index)
+    if (currentCycleIndex === -1) {
+       // From Current -> Newest Closed
+       if (cycles.length > 0) setSelectedCycleId(cycles[0].id);
+    } else if (currentCycleIndex < cycles.length - 1) {
+       setSelectedCycleId(cycles[currentCycleIndex + 1].id);
+    }
+  };
+
+  const handleNextCycle = () => {
+    // Moving forward in time (decreasing index)
+    if (currentCycleIndex === 0) {
+       // From Newest Closed -> Current
+       setSelectedCycleId(null);
+    } else if (currentCycleIndex > 0) {
+       setSelectedCycleId(cycles[currentCycleIndex - 1].id);
+    }
+  };
+
+  const isPrevDisabled = cycles.length === 0 || currentCycleIndex === cycles.length - 1;
+
+  const handleOpenPaymentModal = async () => {
+    // Check constraint: Can only edit Latest Cycle if a cycle is selected
+    if (selectedCycleId && !isLatestCycle) {
+      toast.info("Chỉ có thể chỉnh sửa kỳ thanh toán gần nhất.");
       return;
     }
-    setIsPaymentModalOpen(true);
-  };
 
-  const handleConfirmPayment = async (selectedIds: string[], month: number, year: number) => {
-    try {
-      await db.markAsPaid(selectedIds, month, year);
-      toast.success(`Đã tạo thanh toán cho ${selectedIds.length} bản ghi!`);
-      setIsPaymentModalOpen(false);
-      await fetchData(); // Reload to reflect changes
-    } catch (error) {
-      console.error(error);
-      toast.error("Có lỗi xảy ra khi tạo thanh toán.");
+    if (selectedCycleId && isLatestCycle) {
+       // EDIT MODE: Need to fetch Open Items and combine with Current Cycle Items
+       const currentCycleItems = await db.getTransactionsByCycle(selectedCycleId);
+       const openItems = await db.getTransactionsByCycle(undefined);
+       const combinedData = [...currentCycleItems, ...openItems].sort(sortFn);
+       
+       setPaymentModalTransactions(combinedData);
+       setEditingCycle(cycles.find(c => c.id === selectedCycleId));
+       setIsPaymentModalOpen(true);
+    } else {
+       // CREATE MODE: Just use current OPEN transactions
+       // Need to fetch fresh "open" items to be safe, instead of relying on state if we came from PaymentManager
+       const openItems = await db.getTransactionsByCycle(undefined);
+
+       if (openItems.length === 0) {
+          toast.error("Không có dữ liệu chưa thanh toán để tạo.");
+          return;
+       }
+       setPaymentModalTransactions(openItems.sort(sortFn));
+       setEditingCycle(undefined);
+       setIsPaymentModalOpen(true);
     }
   };
 
-  // Stats Calculation: Based directly on the loaded transactions (which are already filtered by Cycle)
+  const handleConfirmPayment = async (selectedIds: string[], month: number, year: number, totalAmount: number, note: string) => {
+    try {
+      if (editingCycle) {
+        // Update existing cycle
+        await db.updatePaymentCycle(editingCycle.id, selectedIds, totalAmount, note);
+        toast.success(`Đã cập nhật thanh toán kỳ ${month}/${year}!`);
+        // Refresh data
+        await fetchTransactions();
+      } else {
+        // Create new cycle
+        await db.createPaymentCycle(selectedIds, month, year, totalAmount, note);
+        toast.success(`Đã tạo thanh toán cho kỳ ${month}/${year}!`);
+        // Switch to the newly created cycle (if in Ledger view)
+        const newCycleId = `${year}.${month.toString().padStart(2, '0')}`;
+        // If we are in PaymentManager, we stay there, or we can switch to ledger. 
+        // Let's assume user wants to see what they just created.
+        if (currentView === 'ledger') {
+           setSelectedCycleId(newCycleId);
+        }
+      }
+      setIsPaymentModalOpen(false);
+      
+      // Reload metadata (cycles list) in case we just created one
+      const loadedCycles = await db.getPaymentCycles();
+      setCycles(loadedCycles);
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Có lỗi xảy ra khi xử lý thanh toán.");
+    }
+  };
+
   const stats = useMemo(() => {
     const totalRemaining = transactions.reduce((acc, t) => acc + t.remainingBalance, 0);
-    return {
-      totalRemaining,
-      splitByFour: totalRemaining / 4 // Or logic for split
-    };
+    return { totalRemaining, splitByFour: totalRemaining / 4 };
   }, [transactions]);
 
   const prevStats = useMemo(() => {
     const totalRemaining = prevTransactions.reduce((acc, t) => acc + t.remainingBalance, 0);
-    return {
-      totalRemaining,
-      splitByFour: totalRemaining / 4
-    };
+    return { totalRemaining, splitByFour: totalRemaining / 4 };
   }, [prevTransactions]);
 
-  // Only show difference if NOT searching
   const isSearching = searchTerm.trim().length > 0;
   const diffTotal = isSearching ? 0 : stats.totalRemaining - prevStats.totalRemaining;
   const diffSplit = isSearching ? 0 : stats.splitByFour - prevStats.splitByFour;
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN').format(val);
-  };
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
 
+  // Handlers
   const handleOpenDetail = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
 
   const handleAddTransaction = () => {
+    // Cannot add to historical cycle
+    if (selectedCycleId) {
+      toast.warning("Vui lòng chuyển về 'Kỳ hiện tại' để thêm mới.");
+      setSelectedCycleId(null);
+      return;
+    }
+
     const today = new Date();
     const dayStr = today.getDate().toString().padStart(2, '0');
     const monthStr = (today.getMonth() + 1).toString().padStart(2, '0');
@@ -167,7 +295,6 @@ export const Dashboard: React.FC = () => {
     const newTransaction: Transaction = {
       id: '',
       date: `${dayStr}/${monthStr}/${yearStr}`,
-      paymentMonth: undefined, // New items are unpaid by default
       revenue: 0,
       sharedExpense: 0,
       totalBalance: 0,
@@ -179,377 +306,512 @@ export const Dashboard: React.FC = () => {
       details: '',
       isShared: false,
       breakdown: {
-        revenueDown: 0,
-        revenueUp: 0,
-        revenueOther: 0,
-        expenseFuel: 0,
-        expenseFixed: 0,
-        expensePolice: 0,
-        expenseRepair: 0,
-        expenseOther: 0,
-        isShared: false,
-        busId: "25F-002.19",
-        partnerBusId: "25F-000.19"
+        revenueDown: 0, revenueUp: 0, revenueOther: 0,
+        expenseFuel: 0, expenseFixed: 0, expensePolice: 0, expenseRepair: 0, expenseOther: 0,
+        isShared: false, busId: "25F-002.19", partnerBusId: "25F-000.19"
       }
     };
     setSelectedTransaction(newTransaction);
     setIsModalOpen(true);
   };
 
-  const handleCheckDateExists = (dateStr: string): Transaction | undefined => {
-    let found = transactions.find(t => t.date === dateStr);
-    if (!found) {
-      found = prevTransactions.find(t => t.date === dateStr);
-    }
-    return found;
-  };
-
-  const handleSwitchToEdit = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
-    setIsModalOpen(true);
-  };
-
   const handleSaveTransaction = async (updatedTransaction: Transaction) => {
     try {
-      // Enforce rule: Only PAID transactions can have a paymentMonth
-      // If status is VERIFIED or AI_GENERATED, paymentMonth must be undefined/null
       if (updatedTransaction.status !== TransactionStatus.PAID) {
         updatedTransaction.paymentMonth = undefined;
       }
-
       await db.save(updatedTransaction);
-      await fetchData();
+      await fetchTransactions();
       setIsModalOpen(false);
       setSelectedTransaction(null);
     } catch (error) {
       alert("Có lỗi khi lưu dữ liệu.");
-      console.error(error);
     }
   };
 
   const handleDeleteTransaction = async (id: string) => {
     try {
       await db.delete(id);
-      await fetchData();
+      await fetchTransactions();
       setIsModalOpen(false);
       setSelectedTransaction(null);
     } catch (error) {
       alert("Có lỗi khi xóa dữ liệu.");
-      console.error(error);
     }
   };
 
-  const changeMonth = (increment: number) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + increment);
-    setCurrentDate(newDate);
-    if (searchTerm) setSearchTerm('');
-  };
-
-  const selectMonth = (date: Date) => {
-    setCurrentDate(date);
-    setIsMonthPickerOpen(false);
-    if (searchTerm) setSearchTerm('');
-  };
-  
   const handleExportExcel = () => {
     if (transactions.length === 0) {
       alert("Không có dữ liệu để xuất!");
       return;
     }
-    const monthLabel = isSearching ? 'Ket_qua_tim_kiem' : `Ky_Thanh_Toan_${currentDate.getMonth() + 1}-${currentDate.getFullYear()}`;
-    exportToExcel(transactions, monthLabel);
+    const label = isSearching ? 'Tim_Kiem' : (selectedCycleId || 'Ky_Hien_Tai');
+    exportToExcel(transactions, label);
   };
 
-  const last12Months = useMemo(() => {
-    const months = [];
-    const anchorDate = new Date(2025, 10, 1); 
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(anchorDate);
-      d.setMonth(anchorDate.getMonth() - i);
-      months.push(d);
-    }
-    return months.sort((a, b) => a.getTime() - b.getTime());
-  }, []);
-
-  // Determine label for current view
+  // Label Logic
   const getCurrentViewLabel = () => {
     if (isSearching) return `Kết quả tìm kiếm: "${searchTerm}"`;
-    
-    // Check if data is historical (PAID) or open
-    const hasPaidItems = transactions.some(t => t.status === TransactionStatus.PAID);
-    const monthStr = `Tháng ${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
-    
-    if (hasPaidItems) {
-      return `Kỳ thanh toán ${monthStr} (Đã chốt)`;
-    } else {
-      // If empty or contains unpaid items, it's the current open cycle
-      return `Kỳ hiện tại ${monthStr} (Chưa thanh toán)`;
+    if (!selectedCycleId) {
+      return `Kỳ hiện tại (Chưa chốt sổ)`;
     }
+    return `Kỳ thanh toán ${selectedCycleId}`;
+  };
+
+  const getCycleAmountDisplay = (c: PaymentCycle) => {
+    return `${formatCurrency(c.totalAmount)} k`;
+  };
+
+  // Determine payment date for the selected transaction (if paid)
+  const getSelectedTransactionPaymentDate = () => {
+    if (!selectedTransaction?.paymentMonth) return undefined;
+    const cycle = cycles.find(c => c.id === selectedTransaction.paymentMonth);
+    return cycle?.createdDate;
+  };
+
+  // --- Sidebar Logic ---
+  const handleMenuClick = (view: ViewState) => {
+    setCurrentView(view);
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  const navigateToLedger = (cycleId: string) => {
+     setCurrentView('ledger');
+     setSelectedCycleId(cycleId);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex">
-      {/* Sidebar */}
-      <aside className="hidden md:flex w-16 flex-col items-center py-4 border-r bg-white space-y-4 fixed h-full z-10 left-0 top-0">
-        <div className="p-2 bg-slate-900 rounded-lg text-white">
-          <LayoutDashboard size={20} />
+      {/* Mobile Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden animate-in fade-in duration-200"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Toggleable with Text */}
+      <aside 
+        className={`fixed h-full z-40 left-0 top-0 w-64 bg-white border-r flex flex-col transition-transform duration-300 shadow-xl md:shadow-sm ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Brand/Logo Area */}
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 bg-white">
+          <div className="flex items-center">
+             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center mr-3 shadow-md shadow-slate-900/20">
+                <Bus className="text-white" size={18} />
+             </div>
+             <span className="font-bold text-lg text-slate-900 tracking-tight">BusManager</span>
+          </div>
+          
+          {/* Close Button (Mobile Only) */}
+          <button 
+             onClick={() => setIsSidebarOpen(false)}
+             className="md:hidden p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors"
+          >
+             <X size={24} />
+          </button>
         </div>
-        <div className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg cursor-pointer">
-          <FileText size={20} />
-        </div>
-        <div className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg cursor-pointer">
-          <Settings size={20} />
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mt-2">Quản lý</div>
+            
+            {/* Sổ thu chi */}
+            <div 
+              onClick={() => handleMenuClick('ledger')}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
+                 currentView === 'ledger' 
+                 ? 'bg-slate-100 text-slate-900 border-slate-200 shadow-sm' 
+                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent'
+              }`}
+            >
+               <FileText size={20} className={currentView === 'ledger' ? "text-slate-900" : ""} strokeWidth={2.5} />
+               <span className={`text-sm ${currentView === 'ledger' ? 'font-bold' : 'font-medium'}`}>Sổ thu chi</span>
+            </div>
+
+            {/* Lịch xe chạy */}
+            <div 
+              className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
+            >
+               <Calendar size={20} />
+               <span className="font-medium text-sm">Lịch xe chạy</span>
+            </div>
+            
+            {/* Đối soát */}
+            <div 
+               onClick={() => {
+                   setIsReconciliationOpen(true);
+                   setIsSidebarOpen(false);
+               }}
+               className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
+            >
+               <Wallet size={20} />
+               <span className="font-medium text-sm">Đối soát</span>
+            </div>
+
+            {/* Quản lý thanh toán */}
+            <div 
+              onClick={() => handleMenuClick('payments')}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
+                 currentView === 'payments' 
+                 ? 'bg-slate-100 text-slate-900 border-slate-200 shadow-sm' 
+                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent'
+              }`}
+            >
+               <CreditCard size={20} className={currentView === 'payments' ? "text-slate-900" : ""} strokeWidth={2.5} />
+               <span className={`text-sm ${currentView === 'payments' ? 'font-bold' : 'font-medium'}`}>Quản lý thanh toán</span>
+            </div>
+
+            <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6">Hệ thống</div>
+
+            {/* Danh sách xe */}
+            <div 
+              className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
+            >
+               <Bus size={20} />
+               <span className="font-medium text-sm">Danh sách xe</span>
+            </div>
+
+            {/* Cài đặt */}
+            <div 
+              className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
+            >
+               <Settings size={20} />
+               <span className="font-medium text-sm">Cài đặt</span>
+            </div>
+        </nav>
+
+        {/* User Profile Footer */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+            <div className="flex items-center gap-3">
+               <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs shadow-sm">
+                  AD
+               </div>
+               <div className="flex flex-col">
+                  <span className="text-sm font-bold text-slate-900 leading-none mb-1">Admin</span>
+                  <span className="text-xs text-slate-500 leading-none">Quản lý cấp cao</span>
+               </div>
+            </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 md:ml-16 w-full">
-        <div className="w-full p-4 md:p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
-                  <Bus size={24} />
+      {/* Main Content - Adjusted Margin for wider sidebar */}
+      <main className={`flex-1 w-full transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : ''}`}>
+        
+        {/* PAYMENT MANAGER VIEW */}
+        {currentView === 'payments' ? (
+           <div className="w-full p-4 md:p-6">
+              <PaymentManager 
+                 onNavigateToLedger={navigateToLedger} 
+                 onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                 onOpenCreateModal={() => {
+                     // Switch to Create Mode parameters
+                     setSelectedCycleId(null);
+                     setEditingCycle(undefined);
+                     handleOpenPaymentModal();
+                 }}
+              />
+           </div>
+        ) : (
+          /* LEDGER VIEW (DEFAULT) */
+          <div className="w-full p-4 md:p-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4">
+              <div className="flex items-center space-x-3">
+                  <button 
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shrink-0 transition-all focus:outline-none focus:ring-2 focus:ring-slate-100 shadow-sm"
+                  >
+                    <Menu size={20} />
+                  </button>
+                <div className="flex flex-col">
+                  <h1 className="text-xl md:text-2xl font-bold text-slate-900">Quản lý thu chi xe khách</h1>
+                  <div className="text-sm text-slate-500 font-normal flex flex-wrap items-center gap-2">
+                      {getCurrentViewLabel()}
+                      {selectedCycleId && <Badge status={TransactionStatus.PAID} />}
+                  </div>
                 </div>
-               <h1 className="text-xl font-semibold flex items-center gap-2">
-                  {getCurrentViewLabel()}
-               </h1>
+              </div>
+              
+              <div className="flex w-full md:w-auto gap-3 items-center md:self-auto">
+                <Button 
+                    variant="outline" 
+                    size="md" 
+                    icon={<Wallet size={16}/>} 
+                    onClick={() => setIsReconciliationOpen(true)}
+                    className="rounded-full border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all text-sm flex-1 md:flex-none justify-center px-6"
+                >
+                    Đối soát
+                </Button>
+
+                {/* SHOW BUTTON IF: Current Cycle (Create) OR Latest Closed Cycle (Edit) */}
+                {(!selectedCycleId || isLatestCycle) && (
+                  <Button 
+                    variant="primary" 
+                    size="md" 
+                    icon={isLatestCycle ? <Edit size={16}/> : <CreditCard size={16}/>}
+                    onClick={handleOpenPaymentModal}
+                    className="rounded-full bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-200 text-white border-none text-sm flex-1 md:flex-none justify-center px-6"
+                  >
+                      {isLatestCycle ? "Sửa thanh toán" : "Tạo thanh toán"}
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex space-x-2 items-center">
-               {/* 1. Đối soát tiền mặt */}
-               <Button 
-                  variant="outline" 
-                  size="md" 
-                  icon={<Wallet size={14}/>} 
-                  onClick={() => setIsReconciliationOpen(true)}
-               >
-                  Đối soát tiền mặt
-               </Button>
 
-               {/* 2. Tạo thanh toán */}
-               <Button 
-                variant="primary" 
-                size="md" 
-                icon={<CreditCard size={14}/>}
-                onClick={handleOpenPaymentModal}
-                className="bg-blue-600 hover:bg-blue-700"
-               >
-                  Tạo thanh toán
-               </Button>
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <StatsCard 
-              title={isSearching ? "Tổng dư (Kết quả tìm kiếm)" : "Tổng dư (Trong kỳ hiển thị)"} 
-              value={stats.totalRemaining} 
-              diff={diffTotal} 
-            />
-            <StatsCard 
-              title={isSearching ? "Dư sau chia (Kết quả tìm kiếm)" : "Dư sau chia (Trong kỳ hiển thị)"}
-              value={stats.splitByFour} 
-              diff={diffSplit} 
-            />
-          </div>
-
-          {/* Action Bar */}
-          <div className="flex flex-col md:flex-row justify-between items-center mb-5 gap-4">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm toàn bộ dữ liệu..." 
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); }}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-9"
+            {/* Stats Cards - Current Cycle */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+              <StatsCard 
+                title="Tổng dư (Kỳ đang chọn)" 
+                value={stats.totalRemaining} 
+                diff={diffTotal} 
+                icon={Wallet}
+                variant="blue"
+              />
+              <StatsCard 
+                title="Dư sau chia (Kỳ đang chọn)"
+                value={stats.splitByFour} 
+                diff={diffSplit} 
+                icon={PieChart}
+                variant="indigo"
               />
             </div>
-            
-            <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
-               {/* 1. Month Picker */}
-               <div className="flex items-center bg-white border rounded-md shadow-sm relative">
-                 <button 
-                    onClick={() => changeMonth(-1)}
-                    className="p-2.5 hover:bg-slate-100 border-r"
-                    title="Kỳ trước"
-                 >
-                   <ChevronLeft size={14} />
-                 </button>
-                 
-                 <div className="relative">
-                   <button 
-                      onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
-                      className="px-4 py-2 text-sm font-medium min-w-[150px] text-center flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
-                   >
-                      <Calendar size={14}/>
-                      {`Kỳ: T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
-                      <ChevronDown size={14} className={`transition-transform ${isMonthPickerOpen ? 'rotate-180' : ''}`}/>
-                   </button>
-                   
-                   {isMonthPickerOpen && (
-                     <>
-                      <div 
-                        className="fixed inset-0 z-20" 
-                        onClick={() => setIsMonthPickerOpen(false)}
-                      />
-                      <div className="absolute top-full mt-1 right-0 w-[300px] bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="text-sm font-semibold text-slate-500 mb-3 px-1">
-                          Chọn kỳ thanh toán
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {last12Months.map((date, idx) => {
-                            const isSelected = date.getMonth() === currentDate.getMonth() && date.getFullYear() === currentDate.getFullYear();
-                            return (
-                              <button
-                                key={idx}
-                                onClick={() => selectMonth(date)}
-                                className={`
-                                  flex flex-col items-center justify-center py-2 rounded-md text-xs transition-all
-                                  ${isSelected 
-                                    ? 'bg-slate-900 text-white shadow-md' 
-                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                                  }
-                                `}
-                              >
-                                <span className="font-bold text-sm">Tháng {date.getMonth() + 1}</span>
-                                <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{date.getFullYear()}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                     </>
-                   )}
-                 </div>
 
-                 <button 
-                    onClick={() => changeMonth(1)}
-                    className="p-2.5 hover:bg-slate-100 border-l"
-                    title="Kỳ sau"
-                 >
-                   <ChevronRight size={14} />
-                 </button>
-               </div>
+            {/* Action Bar - Optimized for Mobile */}
+            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-6 gap-4">
+              <div className="relative w-full md:w-96 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder="Tìm kiếm..." 
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); }}
+                  className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm pl-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100 focus-visible:border-blue-400 transition-all placeholder:text-slate-400"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 md:flex items-center gap-3 w-full md:w-auto">
+                {/* CYCLE PICKER WITH NAV */}
+                <div className="col-span-2 md:col-span-1 flex items-center gap-2">
+                  {/* Prev Button */}
+                  <button 
+                      onClick={handlePrevCycle}
+                      disabled={isPrevDisabled}
+                      className="w-11 h-11 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm transition-all shrink-0"
+                      title="Kỳ trước"
+                  >
+                      <ChevronLeft size={20} />
+                  </button>
 
-               {/* 2. Xuất Excel */}
-               <Button 
-                  variant="outline" 
-                  size="md" 
-                  icon={<Download size={14}/>}
-                  onClick={handleExportExcel}
-               >
-                  Xuất Excel
-               </Button>
-
-               {/* 3. Thêm sổ thu chi */}
-               <Button 
-                  variant="outline" 
-                  size="md" 
-                  icon={<Plus size={16}/>} 
-                  onClick={handleAddTransaction}
-               >
-                  Thêm sổ thu chi
-               </Button>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
-                <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
-                  <tr>
-                    <th className="h-12 px-2 align-middle w-[70px] text-center" title="Tích chọn nếu đi 2 xe">
-                       Đi 2 xe
-                    </th>
-                    <th className="h-12 px-2 align-middle w-[110px] text-center">Ngày</th>
-                    <th className="h-12 px-2 align-middle text-right w-[100px]">Tổng thu</th>
-                    <th className="h-12 px-2 align-middle text-right w-[100px]">Chi chung</th>
-                    <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Tổng dư</th>
-                    <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư chia</th>
-                    <th className="h-12 px-2 align-middle text-right w-[100px]">Chi riêng</th>
-                    <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư còn lại</th>
-                    <th className="h-12 px-2 align-middle text-center w-[90px]"></th>
-                    <th className="h-12 px-4 align-middle">Ghi chú</th>
-                    <th className="h-12 px-2 align-middle text-right w-[140px]">Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={11} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
-                    </tr>
-                  ) : transactions.length === 0 ? (
-                    <tr>
-                       <td colSpan={11} className="p-10 text-center text-muted-foreground">
-                          {isSearching 
-                             ? `Không tìm thấy dữ liệu nào cho "${searchTerm}"` 
-                             : `Không có dữ liệu backlog nào trong kỳ hiện tại.`}
-                       </td>
-                    </tr>
-                  ) : transactions.map((t) => (
-                    <tr 
-                      key={t.id} 
-                      className="hover:bg-slate-50/60 transition-colors group"
+                  <div className="relative flex-1 md:min-w-[240px]">
+                    <button 
+                        onClick={() => setIsCyclePickerOpen(!isCyclePickerOpen)}
+                        className="h-11 w-full px-5 bg-white border border-slate-200 rounded-full text-sm font-medium flex items-center justify-between gap-3 text-slate-600 shadow-sm hover:shadow-md hover:border-slate-300 hover:text-slate-900 transition-all"
                     >
-                      <td className="px-2 py-3 align-middle text-center">
-                         <input 
-                          type="checkbox" 
-                          checked={t.isShared} 
-                          disabled
-                          className="w-4 h-4 rounded border-gray-300 text-slate-900 accent-slate-900 focus:ring-slate-900 cursor-not-allowed disabled:opacity-100" 
-                          title={t.isShared ? "Đi 2 xe" : "Đi 1 xe (Dư chia / 2)"}
-                        />
-                      </td>
-                      <td className="px-2 py-3 align-middle font-medium text-center text-slate-900">{t.date}</td>
-                      <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
-                      <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
-                      <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
-                      <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
-                      <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
-                      <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <button 
-                          onClick={() => handleOpenDetail(t)}
-                          className="text-xs font-semibold text-slate-900 hover:text-blue-600"
-                        >
-                          Chi tiết
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 align-middle text-slate-600 truncate" title={t.note}>
-                        {t.note}
-                      </td>
-                      <td className="px-2 py-3 align-middle text-right">
-                        <Badge status={t.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div className="flex items-center gap-2 truncate">
+                          <Calendar size={16} className="text-slate-400 shrink-0"/>
+                          <span className="truncate">{selectedCycleId ? `Kỳ ${selectedCycleId}` : 'Kỳ hiện tại (Mở)'}</span>
+                        </div>
+                        <ChevronDown size={14} className={`transition-transform shrink-0 text-slate-400 ${isCyclePickerOpen ? 'rotate-180' : ''}`}/>
+                    </button>
+                    
+                    {isCyclePickerOpen && (
+                      <>
+                        <div className="fixed inset-0 z-20" onClick={() => setIsCyclePickerOpen(false)} />
+                        <div className="absolute top-full mt-1 right-0 w-full md:w-[320px] bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-30 animate-in fade-in zoom-in-95 duration-200">
+                          <div className="px-3 py-2 text-xs font-semibold text-slate-500">Chọn kỳ dữ liệu</div>
+                          
+                          {/* Current Cycle Option */}
+                          <button
+                            onClick={() => { setSelectedCycleId(null); setIsCyclePickerOpen(false); }}
+                            className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-50 transition-colors ${!selectedCycleId ? 'bg-blue-50 text-blue-700' : 'text-slate-700'}`}
+                          >
+                            <div className="flex flex-col">
+                                <span className="font-bold text-sm">Kỳ hiện tại</span>
+                                <span className="text-xs opacity-80">Chưa chốt sổ (Đang hoạt động)</span>
+                            </div>
+                            {!selectedCycleId && <div className="w-2 h-2 rounded-full bg-blue-600"></div>}
+                          </button>
+                          
+                          <div className="h-px bg-slate-100 my-1"></div>
+                          
+                          {/* Historical Cycles */}
+                          <div className="max-h-[300px] overflow-y-auto">
+                            {cycles.map((cycle) => (
+                              <button
+                                key={cycle.id}
+                                onClick={() => { setSelectedCycleId(cycle.id); setIsCyclePickerOpen(false); }}
+                                className={`w-full px-4 py-2.5 text-left flex items-center justify-between hover:bg-slate-50 transition-colors border-l-2 ${selectedCycleId === cycle.id ? 'border-blue-600 bg-slate-50' : 'border-transparent'}`}
+                              >
+                                <div className="flex flex-col overflow-hidden">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-sm text-slate-800">{cycle.id}</span>
+                                      <span className="text-[10px] bg-slate-100 px-1.5 rounded text-slate-500 whitespace-nowrap">{cycle.createdDate}</span>
+                                    </div>
+                                    <span className="text-xs text-slate-500 truncate">{cycle.note || 'Không có ghi chú'}</span>
+                                </div>
+                                <span className="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded whitespace-nowrap ml-2">
+                                  {getCycleAmountDisplay(cycle)}
+                                </span>
+                              </button>
+                            ))}
+                            {cycles.length === 0 && (
+                              <div className="px-4 py-3 text-center text-xs text-slate-400 italic">Chưa có lịch sử thanh toán</div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Next Button - Dimmed if at Current */}
+                  <button 
+                      onClick={handleNextCycle}
+                      disabled={!selectedCycleId}
+                      className="w-11 h-11 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm transition-all shrink-0"
+                      title="Kỳ tiếp theo"
+                  >
+                      <ChevronRight size={20} />
+                  </button>
+                </div>
+
+                <Button 
+                    variant="outline" 
+                    size="md" 
+                    icon={<Download size={16}/>}
+                    onClick={handleExportExcel}
+                    className="rounded-full border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all w-full justify-center md:w-auto h-11 px-6 text-sm"
+                >
+                    Xuất Excel
+                </Button>
+
+                <Button 
+                    variant="primary" 
+                    size="md" 
+                    icon={<Plus size={18}/>} 
+                    onClick={handleAddTransaction}
+                    disabled={!!selectedCycleId}
+                    title={selectedCycleId ? "Chỉ thêm được vào kỳ hiện tại" : "Thêm mới"}
+                    className="rounded-full bg-slate-900 hover:bg-slate-800 shadow-md text-white border-none transition-all w-full justify-center md:w-auto h-11 px-6 text-sm"
+                >
+                    Thêm sổ
+                </Button>
+              </div>
             </div>
-            
-            <div className="border-t p-4 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-               <div className="flex items-center gap-4">
-                 <span className="font-medium italic">
-                   * Dữ liệu hiển thị theo Kỳ thanh toán (Có thể bao gồm ngày của tháng khác nếu thuộc cùng kỳ)
-                 </span>
-               </div>
-               <span>
-                 Hiển thị: {transactions.length} bản ghi {isSearching && '(Tìm kiếm toàn bộ)'}
-               </span>
+
+            {/* Table Container - Responsive Scrolling */}
+            <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
+              <div className="overflow-x-auto flex-1 w-full custom-scrollbar">
+                <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1200px]">
+                  <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
+                    <tr>
+                      <th className="h-12 px-2 align-middle w-[60px] text-center">2 Xe</th>
+                      <th className="h-12 px-2 align-middle w-[100px] text-center">Ngày</th>
+                      <th className="h-12 px-2 align-middle text-right w-[100px]">Tổng thu</th>
+                      <th className="h-12 px-2 align-middle text-right w-[100px]">Chi chung</th>
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Tổng dư</th>
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư chia</th>
+                      <th className="h-12 px-2 align-middle text-right w-[100px]">Chi riêng</th>
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư còn lại</th>
+                      <th className="h-12 px-2 align-middle text-center w-[80px]"></th>
+                      <th className="h-12 px-4 align-middle">Ghi chú</th>
+                      <th className="h-12 px-2 align-middle text-right w-[140px]">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={11} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
+                      </tr>
+                    ) : transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="p-10 text-center text-muted-foreground">
+                            {isSearching 
+                              ? `Không tìm thấy dữ liệu nào cho "${searchTerm}"` 
+                              : `Không có dữ liệu nào trong kỳ này.`}
+                        </td>
+                      </tr>
+                    ) : transactions.map((t) => (
+                      <tr 
+                        key={t.id} 
+                        className="hover:bg-slate-50/60 transition-colors group"
+                      >
+                        <td className="px-2 py-3 align-middle text-center">
+                          <input 
+                            type="checkbox" 
+                            checked={t.isShared} 
+                            disabled
+                            className="w-4 h-4 rounded border-gray-300 text-slate-900 accent-slate-900 cursor-not-allowed disabled:opacity-100" 
+                          />
+                        </td>
+                        <td className="px-2 py-3 align-middle font-medium text-center text-slate-900">{t.date}</td>
+                        <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
+                        <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
+                        <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
+                        <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
+                        <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
+                        <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.remainingBalance)}</td>
+                        <td className="px-2 py-3 align-middle text-center">
+                          <button 
+                            onClick={() => handleOpenDetail(t)}
+                            className="text-sm font-semibold text-slate-900 hover:text-blue-600"
+                          >
+                            Chi tiết
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 align-middle text-slate-600 truncate max-w-[200px]" title={t.note}>
+                          {t.note}
+                        </td>
+                        <td className="px-2 py-3 align-middle text-right">
+                          <Badge status={t.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="border-t p-4 bg-slate-50 flex flex-col md:flex-row items-start md:items-center justify-between text-xs text-slate-500 gap-2">
+                <div className="flex items-center gap-4">
+                  <span className="font-medium italic">
+                    * Dữ liệu hiển thị theo {selectedCycleId ? 'Kỳ thanh toán đã chọn' : 'các khoản chưa thanh toán (Open Items)'}
+                  </span>
+                </div>
+                <span>
+                  Hiển thị: {transactions.length} bản ghi
+                </span>
+              </div>
+            </div>
+
+            {/* Global Stats - Replaces Charts */}
+            <div className="mt-8">
+              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Database size={20} className="text-slate-500"/>
+                Thống kê tổng hợp (Toàn bộ dữ liệu)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <StatsCard 
+                  title="Tổng dư còn lại (Tất cả)" 
+                  value={allTimeStats.total} 
+                  diff={0} 
+                  icon={Wallet}
+                  variant="gray"
+                />
+                <StatsCard 
+                  title="Tổng chia 4 (Tất cả)"
+                  value={allTimeStats.split} 
+                  diff={0}
+                  icon={Calculator}
+                  variant="gray"
+                />
+              </div>
             </div>
           </div>
-
-          {/* Charts */}
-          {!isSearching && !isLoading && transactions.length > 0 && (
-            <DashboardCharts 
-              transactions={transactions} 
-              prevTransactions={prevTransactions}
-            />
-          )}
-        </div>
+        )}
       </main>
       
       {/* Detail Modal */}
@@ -560,27 +822,29 @@ export const Dashboard: React.FC = () => {
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveTransaction}
           onDelete={handleDeleteTransaction}
-          onCheckExists={handleCheckDateExists}
-          onSwitchToEdit={handleSwitchToEdit}
+          onCheckExists={() => undefined} // Disable duplicate check for now
+          paymentDate={getSelectedTransactionPaymentDate()}
         />
       )}
 
-      {/* Payment Cycle Modal */}
+      {/* Payment Cycle Modal (Reused for Edit Mode inside Dashboard main view) */}
       <PaymentModal 
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
-        transactions={transactions}
+        transactions={paymentModalTransactions}
+        cycles={cycles}
         onConfirm={handleConfirmPayment}
+        editingCycle={editingCycle}
       />
 
       {/* Reconciliation Sheet */}
       <ReconciliationSheet 
         isOpen={isReconciliationOpen} 
         onClose={() => setIsReconciliationOpen(false)}
-        currentBalance={stats.totalRemaining}
-        monthLabel={`T${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`}
-        month={currentDate.getMonth() + 1}
-        year={currentDate.getFullYear()}
+        currentBalance={openBalance}
+        monthLabel="Kỳ hiện tại (Chưa thanh toán)"
+        month={new Date().getMonth() + 1}
+        year={new Date().getFullYear()}
       />
     </div>
   );

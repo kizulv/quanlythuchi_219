@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   X,
@@ -13,7 +14,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Save
+  Save,
+  Maximize2
 } from "lucide-react";
 import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus } from "../types";
 import { Button } from "./ui/Button";
@@ -33,6 +35,7 @@ interface TransactionDetailModalProps {
   onDelete: (id: string) => void;
   onCheckExists?: (date: string) => Transaction | undefined;
   onSwitchToEdit?: (transaction: Transaction) => void;
+  paymentDate?: string; // New prop for watermark
 }
 
 const defaultBreakdown: TransactionBreakdown = {
@@ -67,7 +70,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   onSave,
   onDelete,
   onCheckExists,
-  onSwitchToEdit
+  onSwitchToEdit,
+  paymentDate
 }) => {
   const [breakdown, setBreakdown] =
     useState<TransactionBreakdown>(defaultBreakdown);
@@ -104,6 +108,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   // Simple Alert State (For Edit -> Block)
   const [showSimpleDuplicateAlert, setShowSimpleDuplicateAlert] = useState(false);
   
+  // Mobile Image Fullscreen View State
+  const [isMobileImageViewerOpen, setIsMobileImageViewerOpen] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Determine if editing should be restricted (Status = PAID)
@@ -438,7 +445,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
         // Case 2: Editing Transaction (Strict Block with Alert)
         if (transaction.id && existing && existing.id !== transaction.id) {
-            // Found a record with same date but different ID
+            // Found a record with same record but different ID
             setShowSimpleDuplicateAlert(true);
             return; // STOP execution
         }
@@ -489,9 +496,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     finalNote = finalNote.replace(/\s+\./g, '.').replace(/\.\./g, '.').trim();
 
     // Determine new status based on rules
-    // AI_GENERATED -> VERIFIED
-    // VERIFIED -> VERIFIED (keep)
-    // PAID -> PAID (keep)
     let newStatus = transaction.status;
     if (newStatus === TransactionStatus.AI_GENERATED) {
       newStatus = TransactionStatus.VERIFIED;
@@ -499,9 +503,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
     const updated: Transaction = {
       ...transaction,
-      date: date, // Use editable date
+      date: date,
       note: finalNote,
-      status: newStatus, // Apply new status logic
+      status: newStatus,
       breakdown: {
         ...breakdown,
         revenueOther: totalRevenueOther,
@@ -513,7 +517,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       },
       isShared: breakdown.isShared,
       revenue: totalRevenue,
-      sharedExpense: totalExpense, // Updated to use input total
+      sharedExpense: totalExpense,
       totalBalance: totalBalance,
       splitBalance: splitBalance,
       privateExpense: totalPrivateExpense,
@@ -568,7 +572,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     return (
       <div 
         className="absolute top-full left-0 mt-2 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-4 w-[300px] animate-in fade-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -606,34 +610,60 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     );
   };
 
-  // Common Grid column class - Compact Mode
-  const gridClass = "grid grid-cols-[1fr_130px] gap-2 items-center";
-  const dynamicGridClass = "grid grid-cols-[28px_1fr_130px] gap-2 items-center";
+  // Grid classes - Adjusted for mobile responsiveness
+  // Mobile: Smaller gap, smaller items. Desktop: Original layout.
+  const gridClass = "grid grid-cols-[1fr_90px] md:grid-cols-[1fr_130px] gap-2 items-center";
+  const dynamicGridClass = "grid grid-cols-[24px_1fr_90px] md:grid-cols-[28px_1fr_130px] gap-2 items-center";
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 md:p-4 font-sans">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4 font-sans">
+        <div className="bg-white rounded-none md:rounded-xl shadow-2xl w-full h-[100dvh] md:h-[95vh] md:max-w-6xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          
           {/* Left Side: Image Viewer */}
-          <div className="hidden md:flex md:w-6/12 bg-slate-900 relative flex-col group border-r border-slate-800">
-            {/* Date Overlay - Centered Top with Better Style */}
-            <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-md px-6 py-2.5 rounded-full text-white shadow-2xl border border-white/20 flex items-center gap-2 pointer-events-none transition-all">
-               <CalendarIcon size={16} className="text-white/80" />
-               <span className="font-bold text-sm tracking-wide">{date || "--/--/----"}</span>
+          {/* Mobile: Top Strip (h-48) or Full Screen Overlay */}
+          {/* Desktop: Full Height Left Panel */}
+          <div className="w-full h-56 shrink-0 md:h-full md:w-6/12 bg-slate-900 relative flex-col group border-b md:border-b-0 md:border-r border-slate-800">
+            {/* Watermark/Date Overlay */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-md px-4 py-1.5 md:px-6 md:py-2.5 rounded-full text-white shadow-2xl border border-white/20 flex items-center gap-2 pointer-events-none">
+               <CalendarIcon size={14} className="text-white/80" />
+               <span className="font-bold text-xs md:text-sm tracking-wide">{date || "--/--/----"}</span>
             </div>
+            
+            {/* Watermark Paid - Smaller & Straight */}
+            {(isPaid && paymentDate) && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 select-none pointer-events-none transform border-[3px] md:border-[4px] border-red-600/50 rounded-md px-3 py-2 md:px-5 md:py-3 flex flex-col items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                  <span className="text-lg md:text-2xl font-black text-red-600/80 tracking-widest uppercase whitespace-nowrap">
+                      ĐÃ THANH TOÁN
+                  </span>
+                  <span className="text-[10px] md:text-sm font-bold text-red-600/80 mt-0.5 uppercase tracking-wide">
+                      {paymentDate}
+                  </span>
+              </div>
+            )}
 
-            <div className="flex-1 flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+            <div className="flex-1 w-full h-full flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
               {imageUrl ? (
                 <img
                   src={imageUrl}
                   alt="Sổ ghi chép"
-                  className="w-full h-full object-contain rounded-lg shadow-2xl"
+                  className="w-full h-full object-contain md:rounded-lg"
                 />
               ) : (
-                <div className="relative w-full h-full bg-slate-900 rounded-lg overflow-hidden flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-800">
-                  <ImageIcon size={48} className="mb-3 opacity-50" />
-                  <p className="text-sm font-medium">Chưa có hình ảnh</p>
+                <div className="relative w-full h-full bg-slate-900 md:rounded-lg overflow-hidden flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-800">
+                  <ImageIcon size={32} className="mb-2 opacity-50 md:w-12 md:h-12" />
+                  <p className="text-xs md:text-sm font-medium">Chưa có hình ảnh</p>
                 </div>
+              )}
+
+              {/* Expand Button for Mobile */}
+              {imageUrl && (
+                 <button 
+                   onClick={() => setIsMobileImageViewerOpen(true)}
+                   className="absolute bottom-3 right-3 p-2 bg-black/50 text-white rounded-full md:hidden backdrop-blur-sm z-30"
+                 >
+                   <Maximize2 size={16} />
+                 </button>
               )}
 
               {isUploading && (
@@ -644,7 +674,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               )}
             </div>
 
-            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 z-10 px-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -656,29 +686,30 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               <Button
                 variant="primary"
                 size="sm"
-                className={`shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium h-9 ${isPaid ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`shadow-xl bg-white text-slate-900 hover:bg-slate-100 border-0 font-medium h-8 md:h-9 text-sm ${isPaid ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={triggerUpload}
                 disabled={isUploading || isPaid}
               >
-                <Upload size={16} className="mr-2" />
+                <Upload size={14} className="mr-2" />
                 {imageUrl ? "Thay ảnh" : "Tải ảnh"}
               </Button>
             </div>
           </div>
 
-          {/* Right Side: Form - COMPACT LAYOUT */}
-          <div className="w-full md:w-6/12 bg-white flex flex-col h-full text-slate-900">
+          {/* Right Side: Form */}
+          <div className="w-full md:w-6/12 bg-white flex flex-col flex-1 h-full text-slate-900 min-h-0">
             
-            {/* HEADER SECTION - Redesigned */}
-            <div className="px-4 pt-3 pb-0 bg-white sticky top-0 z-10">
-               {/* Row 1: Title and Close - ALIGNMENT FIXED HERE */}
+            {/* HEADER */}
+            <div className="px-3 md:px-4 pt-3 pb-0 bg-white sticky top-0 z-10 shrink-0">
                <div className="flex justify-between items-center mb-1">
                   <div className="flex items-center gap-3">
-                     <h2 className="font-bold text-xl text-slate-900 leading-none">
-                        {transaction.id ? 'Chi tiết đối soát' : 'Thêm mới dữ liệu'}
+                     <h2 className="font-bold text-lg md:text-xl text-slate-900 leading-none">
+                        {transaction.id ? 'Chi tiết' : 'Thêm mới'}
                      </h2>
                      {isPaid && (
-                       <span className="text-[10px] font-bold text-white bg-slate-500 px-2 py-0.5 rounded">ĐÃ THANH TOÁN (CHỈ XEM)</span>
+                       <span className="text-[10px] font-bold text-white bg-slate-500 px-2 py-0.5 rounded flex items-center gap-1">
+                          <Check size={10} strokeWidth={4}/> ĐÃ TT
+                       </span>
                      )}
                   </div>
                   <button
@@ -689,61 +720,54 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   </button>
                </div>
 
-               {/* Divider Line */}
-               <div className="h-px bg-slate-100 w-full mb-4"></div>
+               <div className="h-px bg-slate-100 w-full mb-3 md:mb-4"></div>
                
-               {/* Row 2: Date Picker and Unit Note - Flex Layout */}
-               <div className="flex items-center justify-between pb-4 border-b border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  
-                  {/* Beautiful Date Picker - Click anywhere to open */}
+               <div className="flex items-center justify-between pb-3 md:pb-4 border-b border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                  {/* Date Picker */}
                   <div className="relative">
-                    {/* Trigger Button */}
                      <div 
                         className={`
-                          flex items-center gap-3 border shadow-sm rounded-xl px-4 py-3 transition-all duration-200 min-w-[220px] select-none
+                          flex items-center gap-2 md:gap-3 border shadow-sm rounded-lg md:rounded-xl px-3 py-2 md:px-4 md:py-3 transition-all duration-200 min-w-[180px] md:min-w-[220px] select-none
                           ${isPaid 
                             ? 'bg-slate-50 border-slate-100 opacity-80 cursor-not-allowed' 
-                            : 'bg-white border-slate-200 hover:border-slate-400 hover:ring-4 hover:ring-slate-100 cursor-pointer group'
+                            : 'bg-white border-slate-200 hover:border-slate-400 cursor-pointer group'
                           }
                         `}
                         onClick={() => !isPaid && setIsCalendarOpen(!isCalendarOpen)}
                      >
                         <div className={`p-1 rounded-lg transition-colors shadow-sm ${isPaid ? 'bg-slate-200 text-slate-400' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-900 group-hover:text-white'}`}>
-                           <CalendarDays size={22} strokeWidth={2.5} />
+                           <CalendarDays size={18} strokeWidth={2.5} className="md:w-[22px] md:h-[22px]" />
                         </div>
                         <div className="flex flex-col">
-                           <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider leading-tight mb-0.5">Ngày ghi sổ</span>
-                           <span className={`text-[13px] font-bold leading-tight ${date ? 'text-slate-800' : 'text-slate-400 italic'}`}>
+                           <span className="text-[10px] md:text-[11px] uppercase font-bold text-slate-400 tracking-wider leading-tight mb-0.5">Ngày ghi sổ</span>
+                           <span className={`text-xs md:text-[13px] font-bold leading-tight ${date ? 'text-slate-800' : 'text-slate-400 italic'}`}>
                               {getFormattedDateDisplay(date)}
                            </span>
                         </div>
                      </div>
                      
-                     {/* Custom Calendar Popup */}
                      {isCalendarOpen && !isPaid && (
                        <>
-                         {/* Backdrop to close on outside click */}
                          <div className="fixed inset-0 z-40" onClick={() => setIsCalendarOpen(false)} />
                          {renderCalendar()}
                        </>
                      )}
                   </div>
 
-                  {/* Unit Note - Aligned Right */}
                   <div className="flex flex-col items-end">
-                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Đơn vị tính</span>
-                     <span className="text-sm font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200">
-                        Nghìn đồng (1.000đ)
+                     <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 hidden md:block">Đơn vị tính</span>
+                     <span className="text-[10px] md:text-sm font-semibold text-slate-700 bg-slate-100 px-2 py-1 md:px-3 md:py-1.5 rounded-md border border-slate-200">
+                        1.000đ
                      </span>
                   </div>
                </div>
             </div>
 
-            {/* Body - Reduced padding and spacing */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+            {/* SCROLLABLE BODY */}
+            <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 custom-scrollbar">
               
-              {/* CONFIG SECTION */}
-              <section className="bg-slate-50/80 rounded-lg border border-slate-200 p-3 space-y-2 shadow-sm">
+              {/* CONFIG */}
+              <section className="bg-slate-50/80 rounded-lg border border-slate-200 p-2 md:p-3 space-y-2 shadow-sm">
                  <div className="flex items-center justify-between">
                     <label className={`flex items-center space-x-2 select-none ${isPaid ? 'cursor-not-allowed opacity-70' : 'cursor-pointer group'}`}>
                        <input 
@@ -753,7 +777,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                           disabled={isPaid}
                           className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-900 disabled:cursor-not-allowed"
                        />
-                       <span className="text-sm font-semibold text-slate-700">
+                       <span className="text-xs md:text-sm font-semibold text-slate-700">
                           Chế độ đi 2 xe (Ăn chia)
                        </span>
                     </label>
@@ -761,9 +785,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                  
                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe chính</label>
+                       <label className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe chính</label>
                        <select 
-                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                           value={breakdown.busId}
                           onChange={(e) => setBreakdown({ ...breakdown, busId: e.target.value })}
                           disabled={isPaid}
@@ -774,9 +798,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     </div>
                     
                     <div className={`space-y-1 transition-all duration-200 ${(!breakdown.isShared) ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
-                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe đối tác</label>
+                       <label className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe đối tác</label>
                        <select 
-                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
+                          className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                           value={breakdown.partnerBusId}
                           onChange={(e) => setBreakdown({ ...breakdown, partnerBusId: e.target.value })}
                           disabled={isPaid}
@@ -788,16 +812,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                  </div>
               </section>
 
-              {/* REVENUE SECTION */}
+              {/* REVENUE */}
               <section className="space-y-1.5">
-                 {/* Header */}
                  <div className={`${gridClass} pb-1 border-b border-slate-100`}>
                     <div className="flex items-center gap-1.5">
                        <div className="w-1 h-3 bg-green-500 rounded-full"></div>
-                       <h3 className="font-semibold text-slate-800 text-sm">Tổng Thu</h3>
+                       <h3 className="font-semibold text-slate-800 text-xs md:text-sm">Tổng Thu</h3>
                     </div>
                     <div className="w-full h-8 rounded border border-green-200 bg-green-50/50 px-2 flex items-center justify-end">
-                       <span className="text-sm font-bold text-green-600">{formatForDisplay(totalRevenue)}</span>
+                       <span className="text-xs md:text-sm font-bold text-green-600">{formatForDisplay(totalRevenue)}</span>
                     </div>
                  </div>
                  
@@ -805,26 +828,23 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     <InputRow label="Chiều xuôi" value={breakdown.revenueDown} onChange={(v) => handleRevenueChange("revenueDown", v)} readOnly={isPaid} />
                     <InputRow label="Chiều ngược" value={breakdown.revenueUp} onChange={(v) => handleRevenueChange("revenueUp", v)} readOnly={isPaid} />
                     
-                    {/* Dynamic Revenue Items */}
                     <div className="space-y-1.5">
                        {otherRevenues.map((item) => (
                           <div key={item.id} className={dynamicGridClass}>
-                             {/* Delete Button */}
                              <button 
                                 onClick={isPaid ? undefined : () => removeOtherRevenueItem(item.id)}
-                                className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+                                className={`p-1 md:p-1.5 rounded transition-colors flex items-center justify-center ${
                                     isPaid ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
                                 }`}
                                 disabled={isPaid}
-                                title={isPaid ? "Không thể xóa" : "Xóa"}
                              >
-                                <Trash2 size={14} />
+                                <Trash2 size={14} className="w-3 h-3 md:w-3.5 md:h-3.5" />
                              </button>
                              
                              <input
                                 type="text"
                                 placeholder="Tên khoản thu..."
-                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-xs md:text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
                                 value={item.description}
                                 onChange={(e) => updateOtherRevenueItem(item.id, 'description', e.target.value)}
                                 disabled={isPaid}
@@ -832,7 +852,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                              <SmartInput
                                 value={item.amount}
                                 onCommit={(val) => updateOtherRevenueItem(item.id, 'amount', val)}
-                                className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
                                 readOnly={isPaid}
                              />
                           </div>
@@ -843,9 +863,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                       <div className="pt-0.5">
                         <button 
                             onClick={addOtherRevenueItem}
-                            className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                            className="inline-flex items-center gap-1 text-[10px] md:text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                         >
-                            <Plus size={14} />
+                            <Plus size={12} className="md:w-[14px] md:h-[14px]" />
                             Thêm khoản thu
                         </button>
                       </div>
@@ -853,18 +873,17 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                  </div>
               </section>
 
-              {/* EXPENSE SECTION */}
+              {/* EXPENSE */}
               <section className="space-y-1.5 pt-1">
-                 {/* Header */}
                  <div className={`${gridClass} pb-1 border-b border-slate-100`}>
                     <div className="flex items-center gap-1.5">
                        <div className="w-1 h-3 bg-red-500 rounded-full"></div>
-                       <h3 className="font-semibold text-slate-800 text-sm">Tổng Chi</h3>
+                       <h3 className="font-semibold text-slate-800 text-xs md:text-sm">Tổng Chi</h3>
                     </div>
                     <SmartInput
                        value={totalExpenseInput}
                        onCommit={handleTotalExpenseChange}
-                       className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
+                       className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-xs md:text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
                        readOnly={isPaid}
                     />
                  </div>
@@ -877,17 +896,16 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        readOnly={isPaid}
                     />
                     
-                    {/* Fixed Expense */}
                     <div className={`${gridClass} group`}>
                       <div className="flex items-center gap-2">
-                         <span className="text-sm text-slate-600 group-hover:text-slate-900 truncate">Chi cố định</span>
-                         <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">Auto</span>
+                         <span className="text-xs md:text-sm text-slate-600 group-hover:text-slate-900 truncate">Chi cố định</span>
+                         <span className="text-[8px] md:text-[9px] text-slate-400 bg-slate-100 px-1 rounded">Auto</span>
                       </div>
                       <div className="relative w-full">
                          <input
                            type="text"
                            disabled
-                           className="w-full text-right h-8 rounded border border-slate-100 bg-slate-100 px-2 text-sm font-medium text-slate-500 cursor-not-allowed"
+                           className="w-full text-right h-8 rounded border border-slate-100 bg-slate-100 px-2 text-xs md:text-sm font-medium text-slate-500 cursor-not-allowed"
                            value={formatForDisplay(breakdown.expenseFixed)}
                            readOnly
                          />
@@ -908,24 +926,22 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        readOnly={isPaid}
                     />
                     
-                    {/* Dynamic Expense Items */}
                     <div className="space-y-1.5">
                        {otherExpenses.map((item) => (
                           <div key={item.id} className={dynamicGridClass}>
                              <button 
                                 onClick={isPaid ? undefined : () => removeOtherExpenseItem(item.id)}
-                                className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+                                className={`p-1 md:p-1.5 rounded transition-colors flex items-center justify-center ${
                                     isPaid ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
                                 }`}
                                 disabled={isPaid}
-                                title={isPaid ? "Không thể xóa" : "Xóa"}
                              >
-                                <Trash2 size={14} />
+                                <Trash2 size={14} className="w-3 h-3 md:w-3.5 md:h-3.5" />
                              </button>
                              <input
                                 type="text"
                                 placeholder="Tên khoản chi..."
-                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full h-8 rounded border border-slate-200 bg-slate-50/50 px-2 text-xs md:text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
                                 value={item.description}
                                 onChange={(e) => updateOtherExpenseItem(item.id, 'description', e.target.value)}
                                 disabled={isPaid}
@@ -933,7 +949,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                              <SmartInput
                                 value={item.amount}
                                 onCommit={(val) => updateOtherExpenseItem(item.id, 'amount', val)}
-                                className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
                                 readOnly={isPaid}
                              />
                           </div>
@@ -944,9 +960,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                       <div className="pt-0.5">
                         <button 
                             onClick={addOtherExpenseItem}
-                            className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                            className="inline-flex items-center gap-1 text-[10px] md:text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                         >
-                            <Plus size={14} />
+                            <Plus size={12} className="md:w-[14px] md:h-[14px]" />
                             Thêm khoản chi
                         </button>
                       </div>
@@ -954,48 +970,48 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                  </div>
               </section>
 
-              {/* SUMMARY SECTION */}
-              <section className="bg-slate-50 rounded-lg border border-slate-200 p-3 shadow-sm">
-                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tổng kết</h3>
+              {/* SUMMARY */}
+              <section className="bg-slate-50 rounded-lg border border-slate-200 p-2 md:p-3 shadow-sm">
+                 <h3 className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tổng kết</h3>
                  <div className="space-y-2">
                     <div className={gridClass}>
-                       <span className="text-sm font-medium text-slate-600">Tổng dư (Thu-Chi)</span>
+                       <span className="text-xs md:text-sm font-medium text-slate-600">Tổng dư (Thu-Chi)</span>
                        {isManualBalanceMode ? (
                           <SmartInput
                              value={customTotalBalance}
                              onCommit={setCustomTotalBalance}
                              placeholder="Số dư..."
-                             className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+                             className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-xs md:text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
                              readOnly={isPaid}
                           />
                        ) : (
                           <div className="w-full h-8 flex items-center justify-end px-2">
-                              <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalBalance)}</span>
+                              <span className="font-bold text-xs md:text-sm text-slate-800">{formatForDisplay(totalBalance)}</span>
                           </div>
                        )}
                     </div>
 
                     <div className={gridClass}>
-                       <span className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                       <span className="text-xs md:text-sm font-medium text-slate-600 flex items-center gap-2">
                           Dư sau chia
-                          <span className="text-[9px] px-1 py-0.5 bg-slate-200 rounded text-slate-500 font-bold">
-                             {breakdown.isShared ? '100% - Chia tổng thu' : '50% - Ăn chia'}
+                          <span className="text-[8px] md:text-[9px] px-1 py-0.5 bg-slate-200 rounded text-slate-500 font-bold">
+                             {breakdown.isShared ? '100%' : '50%'}
                           </span>
                        </span>
                        <div className="w-full h-8 flex items-center justify-end px-2">
-                          <span className="font-bold text-sm text-slate-800">{formatForDisplay(splitBalance)}</span>
+                          <span className="font-bold text-xs md:text-sm text-slate-800">{formatForDisplay(splitBalance)}</span>
                        </div>
                     </div>
                     
                     {!breakdown.isShared && <div className="h-px bg-slate-200 my-1 col-span-2"></div>}
 
-                    {/* Dynamic Private Expenses Logic */}
+                    {/* Private Expenses */}
                     {!breakdown.isShared && (
                       <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
                          <div className={gridClass}>
-                            <span className="text-sm font-medium text-slate-600">Trừ chi riêng</span>
+                            <span className="text-xs md:text-sm font-medium text-slate-600">Trừ chi riêng</span>
                             <div className="w-full h-8 flex items-center justify-end px-2">
-                              <span className="font-bold text-sm text-slate-800">{formatForDisplay(totalPrivateExpense)}</span>
+                              <span className="font-bold text-xs md:text-sm text-slate-800">{formatForDisplay(totalPrivateExpense)}</span>
                             </div>
                          </div>
                          
@@ -1004,18 +1020,17 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                                <div key={item.id} className={dynamicGridClass}>
                                   <button 
                                       onClick={isPaid ? undefined : () => removePrivateExpenseItem(item.id)}
-                                      className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+                                      className={`p-1 md:p-1.5 rounded transition-colors flex items-center justify-center ${
                                           isPaid ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
                                       }`}
                                       disabled={isPaid}
-                                      title={isPaid ? "Không thể xóa" : "Xóa"}
                                   >
-                                      <Trash2 size={14} />
+                                      <Trash2 size={14} className="w-3 h-3 md:w-3.5 md:h-3.5" />
                                   </button>
                                   <input
                                      type="text"
-                                     placeholder="Khoản chi riêng..."
-                                     className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                     placeholder="Chi riêng..."
+                                     className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
                                      value={item.description}
                                      onChange={(e) => updatePrivateExpenseItem(item.id, 'description', e.target.value)}
                                      disabled={isPaid}
@@ -1023,7 +1038,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                                   <SmartInput
                                      value={item.amount}
                                      onCommit={(val) => updatePrivateExpenseItem(item.id, 'amount', val)}
-                                     className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
+                                     className="w-full text-right h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm font-medium text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none transition-all"
                                      readOnly={isPaid}
                                   />
                                </div>
@@ -1034,9 +1049,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                            <div className="pt-0.5">
                               <button 
                                   onClick={addPrivateExpenseItem}
-                                  className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                                  className="inline-flex items-center gap-1 text-[10px] md:text-xs font-medium px-1.5 py-1 rounded ml-[-6px] transition-colors text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                               >
-                                  <Plus size={14} />
+                                  <Plus size={12} className="md:w-[14px] md:h-[14px]" />
                                   Thêm chi riêng
                               </button>
                            </div>
@@ -1047,15 +1062,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     <div className="h-px bg-slate-200 my-1 col-span-2"></div>
 
                     <div className={`${gridClass} pt-0.5`}>
-                       <span className="text-sm font-bold text-slate-900">Dư thực nhận</span>
+                       <span className="text-xs md:text-sm font-bold text-slate-900">Dư thực nhận</span>
                        <div className="w-full h-8 flex items-center justify-end px-2">
-                          <span className="text-xl font-bold text-primary">{formatForDisplay(remainingBalance)}</span>
+                          <span className="text-lg md:text-xl font-bold text-primary">{formatForDisplay(remainingBalance)}</span>
                        </div>
                     </div>
                  </div>
               </section>
 
-              {/* NOTES SECTION - ALWAYS ENABLED */}
+              {/* NOTES */}
               <div className="space-y-1">
                  <label className="text-xs font-semibold text-slate-600">Ghi chú thêm {isPaid && "(Có thể chỉnh sửa)"}</label>
                  <textarea
@@ -1068,7 +1083,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-slate-100 bg-white flex justify-between gap-3 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.03)]">
+            <div className="p-3 md:p-4 border-t border-slate-100 bg-white flex justify-between gap-3 z-10 shadow-[0_-1px_2px_rgba(0,0,0,0.03)] shrink-0">
                {transaction.id && (
                   <Button
                      variant="outline"
@@ -1077,26 +1092,26 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                      disabled={isPaid}
                      title={isPaid ? "Không thể xóa bản ghi đã thanh toán" : "Xóa phiếu này"}
                   >
-                     <Trash2 size={16} className="mr-2" />
-                     Xóa
+                     <Trash2 size={16} className="md:mr-2" />
+                     <span className="hidden md:inline">Xóa</span>
                   </Button>
                )}
                
                <div className="flex gap-3 flex-1 justify-end">
                   <Button
                     variant="outline"
-                    className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-10 min-w-[100px]"
+                    className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 h-10 min-w-[80px] md:min-w-[100px]"
                     onClick={onClose}
                   >
                     Đóng
                   </Button>
                   <Button
                     variant="primary"
-                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10 min-w-[120px]"
+                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-md shadow-slate-900/10 h-10 min-w-[100px] md:min-w-[120px]"
                     onClick={handleSave}
                   >
                     <Save size={16} className="mr-2" />
-                    Lưu {isPaid ? 'ghi chú' : 'thay đổi'}
+                    Lưu
                   </Button>
                </div>
             </div>
@@ -1104,36 +1119,63 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         </div>
       </div>
 
-      {/* Alert Dialog for Delete Confirmation */}
+      {/* Mobile Full Screen Image Viewer Overlay */}
+      {isMobileImageViewerOpen && imageUrl && (
+         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-200">
+            <div className="absolute top-4 right-4 z-50">
+               <button 
+                 onClick={() => setIsMobileImageViewerOpen(false)}
+                 className="p-2 bg-white/20 text-white rounded-full backdrop-blur-md"
+               >
+                 <X size={24} />
+               </button>
+            </div>
+            
+            <div className="flex-1 flex items-center justify-center p-2">
+               <img 
+                 src={imageUrl} 
+                 alt="Full Screen Receipt" 
+                 className="max-w-full max-h-full object-contain"
+               />
+            </div>
+
+            {(isPaid && paymentDate) && (
+              <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 px-6 py-2 bg-red-600/80 backdrop-blur-md rounded-full border border-red-400/50">
+                  <span className="text-white font-bold uppercase tracking-wider text-sm">
+                      Đã thanh toán: {paymentDate}
+                  </span>
+              </div>
+            )}
+         </div>
+      )}
+
       <AlertDialog 
         isOpen={showDeleteAlert}
         onClose={() => setShowDeleteAlert(false)}
         onConfirm={handleConfirmDelete}
         title="Bạn có chắc chắn muốn xóa?"
-        description="Hành động này không thể hoàn tác. Dữ liệu bản ghi sẽ bị xóa vĩnh viễn khỏi hệ thống."
-        confirmText="Xóa bản ghi"
+        description="Hành động này không thể hoàn tác."
+        confirmText="Xóa"
         variant="destructive"
       />
       
-      {/* Alert Dialog for Duplicate Date (New) -> Switch */}
       <AlertDialog 
         isOpen={showExistAlert}
         onClose={handleCancelSwitchEdit}
         onConfirm={handleConfirmSwitchEdit}
-        title="Dữ liệu ngày này đã tồn tại"
-        description={`Hệ thống tìm thấy dữ liệu cho ngày ${conflictTransaction?.date}. Bạn có muốn chuyển sang chế độ chỉnh sửa bản ghi đó không?`}
+        title="Trùng dữ liệu"
+        description={`Đã có dữ liệu ngày ${conflictTransaction?.date}. Chuyển sang sửa?`}
         cancelText="Không"
         confirmText="Đồng ý"
         variant="default"
       />
 
-      {/* Alert Dialog for Duplicate Date (Edit) -> Block */}
       <AlertDialog 
         isOpen={showSimpleDuplicateAlert}
         onClose={() => setShowSimpleDuplicateAlert(false)}
         onConfirm={() => setShowSimpleDuplicateAlert(false)}
         title="Trùng dữ liệu"
-        description={`Ngày ${date} đã có dữ liệu. Vui lòng kiểm tra lại.`}
+        description={`Ngày ${date} đã có dữ liệu.`}
         confirmText="Đã hiểu"
         showCancel={false}
         variant="default"
@@ -1142,7 +1184,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   );
 };
 
-// Helper component for input rows with Compact Mode
+// Compact InputRow helper
 const InputRow = ({
   label,
   value,
@@ -1154,12 +1196,12 @@ const InputRow = ({
   onChange: (v: number) => void;
   readOnly?: boolean;
 }) => (
-  <div className="grid grid-cols-[1fr_130px] gap-2 items-center group">
-    <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors truncate" title={label}>{label}</span>
+  <div className="grid grid-cols-[1fr_90px] md:grid-cols-[1fr_130px] gap-2 items-center group">
+    <span className="text-xs md:text-sm text-slate-600 group-hover:text-slate-900 transition-colors truncate" title={label}>{label}</span>
     <SmartInput
       value={value}
       onCommit={onChange}
-      className={`w-full text-right h-8 rounded border border-slate-200 px-2 text-sm font-medium text-slate-700 outline-none transition-all ${readOnly ? 'bg-slate-50 cursor-not-allowed' : 'bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100'}`}
+      className={`w-full text-right h-8 rounded border border-slate-200 px-2 text-xs md:text-sm font-medium text-slate-700 outline-none transition-all ${readOnly ? 'bg-slate-50 cursor-not-allowed' : 'bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100'}`}
       readOnly={readOnly}
     />
   </div>

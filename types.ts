@@ -43,7 +43,7 @@ export interface TransactionBreakdown {
 export interface Transaction {
   id: string;
   date: string;
-  paymentMonth?: string; // Format: YYYY.MM (VD: 2025.10, 2025.11)
+  paymentMonth?: string; // Format: YYYY.MM (VD: 2025.10, 2025.11) - acts as Foreign Key to PaymentCycle
   revenue: number;
   sharedExpense: number;
   totalBalance: number;
@@ -56,6 +56,14 @@ export interface Transaction {
   isShared: boolean;
   breakdown?: TransactionBreakdown;
   imageUrl?: string; // Link ảnh sổ sách
+}
+
+export interface PaymentCycle {
+  id: string; // Format: YYYY.MM (VD 2025.11, 2025.10)
+  createdDate: string; // Ngày tạo thanh toán
+  transactionIds: string[]; // Các bản ghi trong kỳ
+  totalAmount: number; // Tổng số tiền thanh toán (remainingBalance)
+  note?: string;
 }
 
 export interface DashboardStats {
