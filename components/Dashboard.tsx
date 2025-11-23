@@ -548,16 +548,6 @@ export const Dashboard: React.FC = () => {
               </div>
               
               <div className="flex w-full md:w-auto gap-3 items-center md:self-auto">
-                <Button 
-                    variant="outline" 
-                    size="md" 
-                    icon={<Wallet size={16}/>} 
-                    onClick={() => setIsReconciliationOpen(true)}
-                    className="rounded-full border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all text-sm flex-1 md:flex-none justify-center px-6"
-                >
-                    Đối soát
-                </Button>
-
                 {/* SHOW BUTTON IF: Current Cycle (Create) OR Latest Closed Cycle (Edit) */}
                 {(!selectedCycleId || isLatestCycle) && (
                   <Button 

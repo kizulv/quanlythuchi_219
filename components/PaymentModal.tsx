@@ -388,7 +388,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             {isShareholding ? formatCurrency(ownerShare) : '-'}
                           </td>
                           <td className="px-2 py-3 text-right text-orange-600 font-medium">
-                            {isShareholding && heldShare > 0 ? formatCurrency(heldShare) : '-'}
+                            {/* CHANGED: Allow negative values (e.g., loss sharing) */}
+                            {isShareholding && heldShare !== 0 ? formatCurrency(heldShare) : '-'}
                           </td>
 
                           <td className="px-2 py-3 text-center hidden md:table-cell">

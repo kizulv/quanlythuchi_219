@@ -207,7 +207,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
        {/* Stats Cards - Compact Mode (No diff) */}
        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           <StatsCard 
-             title="Tổng thanh toán" 
+             title="Tổng" 
              value={stats.totalAmount}
              showDiff={false} 
              icon={CheckCircle}
@@ -308,7 +308,8 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
                            {/* Giữ hộ */}
                            <td className="px-4 py-4 align-middle text-right">
                               <span className="font-semibold text-orange-600">
-                                {split.held > 0 ? formatCurrency(split.held) : '-'}
+                                {/* CHANGED: Allow negative values (loss sharing) */}
+                                {split.held !== 0 ? formatCurrency(split.held) : '-'}
                               </span>
                            </td>
                            {/* Tổng */}
