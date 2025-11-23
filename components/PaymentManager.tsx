@@ -207,7 +207,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
        {/* Stats Cards - Compact Mode (No diff) */}
        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           <StatsCard 
-             title="Tổng đã thanh toán" 
+             title="Tổng thanh toán" 
              value={stats.totalAmount}
              showDiff={false} 
              icon={CheckCircle}
