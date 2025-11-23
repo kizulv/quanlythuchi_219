@@ -1,12 +1,15 @@
 
-import { Transaction, ReconciliationReport, TransactionStatus, PaymentCycle } from '../types';
+
+import { Transaction, ReconciliationReport, TransactionStatus, PaymentCycle, Bus } from '../types';
 import { MOCK_DATABASE } from '../data/mockData';
+import { MOCK_BUSES } from '../data/busData';
 import { MOCK_RECONCILIATION_REPORTS } from '../data/reconData';
 import { MOCK_PAYMENT_CYCLES } from '../data/paymentMonthData';
 
 const DB_KEY = 'busmanager_db_v1';
 const RECON_DB_KEY = 'busmanager_recon_v1';
 const CYCLES_DB_KEY = 'busmanager_cycles_v1';
+const BUSES_DB_KEY = 'busmanager_buses_v1';
 
 // Helper to parse date string "DD/MM/YYYY" to timestamp for sorting
 const parseDate = (dateStr: string): number => {
@@ -38,6 +41,12 @@ export const db = {
       localStorage.setItem(CYCLES_DB_KEY, JSON.stringify(MOCK_PAYMENT_CYCLES));
       console.log('Payment Cycles Database initialized with mock data');
     }
+
+    // Init Buses Collection
+    if (!localStorage.getItem(BUSES_DB_KEY)) {
+      localStorage.setItem(BUSES_DB_KEY, JSON.stringify(MOCK_BUSES));
+      console.log('Buses Database initialized with mock data');
+    }
   },
 
   getAll: async (): Promise<Transaction[]> => {
@@ -55,6 +64,38 @@ export const db = {
     // Sort by ID descending (newest first)
     cycles.sort((a, b) => b.id.localeCompare(a.id));
     return cycles;
+  },
+
+  getBuses: async (): Promise<Bus[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const data = localStorage.getItem(BUSES_DB_KEY);
+    let buses: Bus[] = data ? JSON.parse(data) : [];
+    return buses;
+  },
+
+  saveBus: async (bus: Bus): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const data = localStorage.getItem(BUSES_DB_KEY);
+    let buses: Bus[] = data ? JSON.parse(data) : [];
+    
+    const index = buses.findIndex(b => b.id === bus.id);
+    if (index >= 0) {
+      buses[index] = bus;
+    } else {
+      if (!bus.id) {
+        bus.id = `bus_${Date.now()}`;
+      }
+      buses.push(bus);
+    }
+    localStorage.setItem(BUSES_DB_KEY, JSON.stringify(buses));
+  },
+
+  deleteBus: async (id: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const data = localStorage.getItem(BUSES_DB_KEY);
+    let buses: Bus[] = data ? JSON.parse(data) : [];
+    const filtered = buses.filter(b => b.id !== id);
+    localStorage.setItem(BUSES_DB_KEY, JSON.stringify(filtered));
   },
 
   /**

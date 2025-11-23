@@ -33,9 +33,10 @@ import { db } from '../services/database';
 import { ReconciliationSheet } from './ReconciliationSheet';
 import { PaymentModal } from './PaymentModal';
 import { PaymentManager } from './PaymentManager';
+import { BusManager } from './BusManager';
 import { toast } from 'sonner';
 
-type ViewState = 'ledger' | 'payments';
+type ViewState = 'ledger' | 'payments' | 'buses';
 
 export const Dashboard: React.FC = () => {
   // Navigation State
@@ -470,10 +471,15 @@ export const Dashboard: React.FC = () => {
 
             {/* Danh sách xe */}
             <div 
-              className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
+              onClick={() => handleMenuClick('buses')}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
+                 currentView === 'buses' 
+                 ? 'bg-slate-100 text-slate-900 border-slate-200 shadow-sm' 
+                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent'
+              }`}
             >
-               <Bus size={20} />
-               <span className="font-medium text-sm">Danh sách xe</span>
+               <Bus size={20} className={currentView === 'buses' ? "text-slate-900" : ""} />
+               <span className={`text-sm ${currentView === 'buses' ? 'font-bold' : 'font-medium'}`}>Danh sách xe</span>
             </div>
 
             {/* Cài đặt */}
@@ -502,7 +508,7 @@ export const Dashboard: React.FC = () => {
       {/* Main Content - Adjusted Margin for wider sidebar */}
       <main className={`flex-1 w-full transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : ''}`}>
         
-        {/* PAYMENT MANAGER VIEW */}
+        {/* VIEW SWITCHING */}
         {currentView === 'payments' ? (
            <div className="w-full p-4 md:p-6">
               <PaymentManager 
@@ -515,6 +521,10 @@ export const Dashboard: React.FC = () => {
                      handleOpenPaymentModal();
                  }}
               />
+           </div>
+        ) : currentView === 'buses' ? (
+           <div className="w-full p-4 md:p-6">
+              <BusManager onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
            </div>
         ) : (
           /* LEDGER VIEW (DEFAULT) */

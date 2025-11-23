@@ -1,4 +1,5 @@
 
+
 export enum TransactionStatus {
   PAID = 'PAID',
   VERIFIED = 'VERIFIED',
@@ -64,6 +65,23 @@ export interface PaymentCycle {
   transactionIds: string[]; // Các bản ghi trong kỳ
   totalAmount: number; // Tổng số tiền thanh toán (remainingBalance)
   note?: string;
+}
+
+export interface Shareholder {
+  id: string;
+  name: string;
+  percentage: number;
+}
+
+export interface Bus {
+  id: string;
+  licensePlate: string; // Biển kiểm soát
+  isPartner: boolean;   // true = Xe đối tác, false = Xe nhà (Quan trọng cho logic chia tiền)
+  isShareholding: boolean; // true = Xe cổ phần, false = Xe không có cổ phần
+  note?: string;
+  status: 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE';
+  sharePercentage: number; // Tỉ lệ cổ phần sở hữu (VD: 50)
+  shareholders: Shareholder[]; // Danh sách cầm hộ cổ phần
 }
 
 export interface DashboardStats {

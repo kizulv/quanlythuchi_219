@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   X,
   Calculator,
@@ -15,9 +15,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Save,
-  Maximize2
+  Maximize2,
+  Users,
+  PieChart
 } from "lucide-react";
-import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus } from "../types";
+import { Transaction, TransactionBreakdown, OtherRevenueItem, OtherExpenseItem, PrivateExpenseItem, TransactionStatus, Bus } from "../types";
 import { Button } from "./ui/Button";
 import { AlertDialog } from "./ui/AlertDialog";
 import { SmartInput } from "./ui/SmartInput";
@@ -25,6 +27,7 @@ import {
   processAndUploadImage,
   getProcessedDataUrl,
 } from "../services/imageService";
+import { db } from "../services/database";
 import { toast } from "sonner";
 
 interface TransactionDetailModalProps {
@@ -51,8 +54,8 @@ const defaultBreakdown: TransactionBreakdown = {
   otherExpenseItems: [],
   privateExpenseItems: [],
   isShared: true,
-  busId: "25F-002.19",
-  partnerBusId: "25F-000.19",
+  busId: "",
+  partnerBusId: "",
 };
 
 // --- Calendar Constants ---
@@ -78,6 +81,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const [note, setNote] = useState("");
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Bus Data State
+  const [buses, setBuses] = useState<Bus[]>([]);
   
   // Date & Calendar State
   const [date, setDate] = useState("");
@@ -116,9 +122,41 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   // Determine if editing should be restricted (Status = PAID)
   const isPaid = transaction.status === TransactionStatus.PAID;
 
+  // Load Buses
+  useEffect(() => {
+    const loadBuses = async () => {
+      const data = await db.getBuses();
+      setBuses(data);
+      
+      // If creating new transaction and no busId selected yet
+      if (!transaction.id && !breakdown.busId) {
+        // Default Main: First bus that is Shareholding (Xe chính = xe có cổ phần)
+        const defaultMainBus = data.find(b => b.isShareholding);
+        const mainBusId = defaultMainBus ? defaultMainBus.licensePlate : (data[0]?.licensePlate || "");
+        
+        // Default Accompanying: First bus that is NOT the main bus
+        const defaultAccompanyingBus = data.find(b => b.licensePlate !== mainBusId);
+        
+        setBreakdown(prev => ({
+            ...prev,
+            busId: mainBusId,
+            partnerBusId: defaultAccompanyingBus ? defaultAccompanyingBus.licensePlate : prev.partnerBusId
+        }));
+      }
+    };
+    if (isOpen) {
+        loadBuses();
+    }
+  }, [isOpen]);
+
+  // Identify Current Selected Bus Object
+  const selectedBus = useMemo(() => {
+    return buses.find(b => b.licensePlate === breakdown.busId);
+  }, [buses, breakdown.busId]);
+
   // Helper: Format value for display
   const formatForDisplay = (val: number) =>
-    new Intl.NumberFormat("vi-VN").format(val);
+    new Intl.NumberFormat("vi-VN").format(Math.round(val));
 
   // Helper: Parse "DD/MM/YYYY" string to Date object
   const parseDateString = (dateStr: string): Date => {
@@ -391,6 +429,25 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBreakdown((prev) => ({ ...prev, isShared: e.target.checked }));
+  };
+
+  // Handle Main Bus Change
+  const handleMainBusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newMainBusId = e.target.value;
+    
+    // If the new main bus is the same as the current partner bus, we need to pick a new partner bus
+    let newPartnerBusId = breakdown.partnerBusId;
+    if (newPartnerBusId === newMainBusId) {
+       // Find the first bus that is NOT the new main bus
+       const otherBus = buses.find(b => b.licensePlate !== newMainBusId);
+       newPartnerBusId = otherBus ? otherBus.licensePlate : '';
+    }
+
+    setBreakdown(prev => ({ 
+        ...prev, 
+        busId: newMainBusId,
+        partnerBusId: newPartnerBusId
+    }));
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -789,24 +846,28 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        <select 
                           className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                           value={breakdown.busId}
-                          onChange={(e) => setBreakdown({ ...breakdown, busId: e.target.value })}
+                          onChange={handleMainBusChange}
                           disabled={isPaid}
                        >
-                          <option value="25F-002.19">25F-002.19</option>
-                          <option value="29B-123.45">29B-123.45</option>
+                          {/* Main Bus Logic: Only show Shareholding buses */}
+                          {buses.filter(b => b.isShareholding).map(b => (
+                             <option key={b.id} value={b.licensePlate}>{b.licensePlate}</option>
+                          ))}
                        </select>
                     </div>
                     
-                    <div className={`space-y-1 transition-all duration-200 ${(!breakdown.isShared) ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
-                       <label className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Xe đối tác</label>
+                    <div className={`space-y-1 transition-all duration-200`}>
+                       <label className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đi cùng</label>
                        <select 
                           className="w-full h-8 rounded border border-slate-200 bg-white px-2 text-xs md:text-sm text-slate-700 focus:border-slate-400 focus:ring-1 focus:ring-slate-100 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                           value={breakdown.partnerBusId}
                           onChange={(e) => setBreakdown({ ...breakdown, partnerBusId: e.target.value })}
                           disabled={isPaid}
                        >
-                           <option value="25F-000.19">25F-000.19</option>
-                           <option value="15B-999.99">15B-999.99</option>
+                           {/* Accompanying Bus Logic: Show ALL buses EXCEPT the selected Main Bus */}
+                           {buses.filter(b => b.licensePlate !== breakdown.busId).map(b => (
+                               <option key={b.id} value={b.licensePlate}>{b.licensePlate}</option>
+                           ))}
                        </select>
                     </div>
                  </div>
@@ -1067,6 +1128,34 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                           <span className="text-lg md:text-xl font-bold text-primary">{formatForDisplay(remainingBalance)}</span>
                        </div>
                     </div>
+
+                    {/* Shareholding Breakdown */}
+                    {selectedBus && (selectedBus.sharePercentage < 100 || (selectedBus.shareholders && selectedBus.shareholders.length > 0)) && (
+                        <div className="mt-2 pt-2 border-t border-slate-200 border-dashed animate-in fade-in slide-in-from-top-1 duration-300">
+                            <div className="flex items-center gap-1 mb-2">
+                               <PieChart size={12} className="text-slate-400" />
+                               <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wider">Phân chia cổ phần</span>
+                            </div>
+                            <div className="space-y-1.5 bg-white/50 border border-slate-100 p-2 rounded-lg">
+                                {/* Owner */}
+                                <div className="flex justify-between items-center text-xs">
+                                     <span className="text-slate-600 font-medium">Chủ xe ({selectedBus.sharePercentage}%)</span>
+                                     <span className="font-bold text-slate-700">
+                                         {formatForDisplay((remainingBalance * selectedBus.sharePercentage) / 100)}
+                                     </span>
+                                </div>
+                                {/* Shareholders */}
+                                {selectedBus.shareholders?.map(sh => (
+                                     <div key={sh.id} className="flex justify-between items-center text-xs">
+                                         <span className="text-slate-500">{sh.name} (Cầm {sh.percentage}%)</span>
+                                         <span className="font-medium text-slate-600">
+                                             {formatForDisplay((remainingBalance * sh.percentage) / 100)}
+                                         </span>
+                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                  </div>
               </section>
 

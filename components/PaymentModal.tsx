@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
-import { X, Calculator, Calendar, DollarSign, Wallet, CheckCircle, CalendarCheck, Lock } from 'lucide-react';
-import { Transaction, TransactionStatus, PaymentCycle } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Calculator, Calendar, DollarSign, Wallet, CheckCircle, CalendarCheck, Lock, PieChart, Users, UserCheck } from 'lucide-react';
+import { Transaction, TransactionStatus, PaymentCycle, Bus } from '../types';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { db } from '../services/database';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -26,6 +27,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [note, setNote] = useState('');
+  
+  // New: Bus data for share calculation
+  const [buses, setBuses] = useState<Bus[]>([]);
 
   // Determine which transactions to show
   const visibleTransactions = transactions.filter(t => {
@@ -39,6 +43,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      // Load Bus Data for calculations
+      const loadBuses = async () => {
+        const busData = await db.getBuses();
+        setBuses(busData);
+      };
+      loadBuses();
+
       if (editingCycle) {
         // EDIT MODE SETUP
         const [yearStr, monthStr] = editingCycle.id.split('.');
@@ -83,14 +94,54 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [isOpen, editingCycle]);
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(Math.round(val));
 
   const selectedTransactions = visibleTransactions.filter(t => selectedIds.has(t.id));
   
   const totalRemaining = selectedTransactions.reduce((sum, t) => sum + t.remainingBalance, 0);
   
-  // LOGIC: Payment Amount is STRICTLY Total Remaining divided by 4
-  const paymentAmount = Math.floor(totalRemaining / 4);
+  // --- NEW CALCULATION LOGIC: SHARES ---
+  const shareStats = useMemo(() => {
+      let ownerTotal = 0;
+      const shareholderTotals: Record<string, number> = {};
+      let totalCalculated = 0;
+
+      selectedTransactions.forEach(t => {
+          // Identify Bus
+          const busId = t.breakdown?.busId; // Usually license plate
+          const bus = buses.find(b => b.licensePlate === busId);
+          const balance = t.remainingBalance;
+
+          if (bus && bus.isShareholding) {
+              // Calculate Owner Share
+              const ownerAmount = (balance * bus.sharePercentage) / 100;
+              ownerTotal += ownerAmount;
+
+              // Calculate Shareholders
+              bus.shareholders?.forEach(sh => {
+                  const shAmount = (balance * sh.percentage) / 100;
+                  shareholderTotals[sh.name] = (shareholderTotals[sh.name] || 0) + shAmount;
+                  totalCalculated += shAmount;
+              });
+              totalCalculated += ownerAmount;
+          } else {
+              // If not shareholding or bus not found, assume 100% goes to Owner/Operator
+              // or reflect previous "Remaining Balance" directly
+              ownerTotal += balance;
+              totalCalculated += balance;
+          }
+      });
+
+      return {
+          ownerTotal,
+          shareholderTotals,
+          totalCalculated
+      };
+  }, [selectedTransactions, buses]);
+
+  // Use the calculated total based on shares as the payment amount
+  // (Assuming the cycle clears the entire balance distributed among stakeholders)
+  const paymentAmount = shareStats.totalCalculated;
   const count = selectedTransactions.length;
 
   const handleConfirm = () => {
@@ -151,15 +202,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
            
            {/* Right Panel: Summary */}
-           <div className="w-full md:w-[340px] bg-slate-50 p-2 md:p-6 flex flex-col gap-1 md:gap-4 shadow-[-5px_0_15px_-3px_rgba(0,0,0,0.05)] z-20 shrink-0 order-first md:order-last border-b md:border-b-0 border-slate-200">
+           <div className="w-full md:w-[360px] bg-slate-50 p-2 md:p-5 flex flex-col gap-1 md:gap-3 shadow-[-5px_0_15px_-3px_rgba(0,0,0,0.05)] z-20 shrink-0 order-first md:order-last border-b md:border-b-0 border-slate-200 overflow-y-auto custom-scrollbar">
               
               {/* Payment Cycle Info */}
-              <div className="relative overflow-hidden rounded-lg md:rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 p-2.5 md:p-5 text-white shadow-lg shrink-0 flex items-center justify-between md:block">
+              <div className="relative overflow-hidden rounded-lg md:rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 p-2.5 md:p-4 text-white shadow-lg shrink-0 flex items-center justify-between md:block">
                 <div className="absolute right-[-10px] top-[-10px] opacity-10 pointer-events-none">
                    <CalendarCheck size={80} className="md:w-[100px] md:h-[100px]" />
                 </div>
                 
-                <div className="relative z-10 flex items-center gap-2 md:mb-2 opacity-90 md:opacity-100">
+                <div className="relative z-10 flex items-center gap-2 md:mb-1 opacity-90 md:opacity-100">
                     <Calendar size={14} className="text-slate-300 md:text-white md:w-4 md:h-4" />
                     <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider">Kỳ thanh toán</span>
                     {editingCycle && <Lock size={12} className="text-orange-300 ml-1" />}
@@ -171,7 +222,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Totals Breakdown */}
-              <div className="flex flex-col gap-1 md:gap-3 shrink-0">
+              <div className="flex flex-col gap-2 shrink-0">
                  <div className="flex flex-row items-center justify-between p-2.5 md:p-3 rounded-lg bg-white border border-slate-200 border-dashed">
                     <span className="text-xs md:text-sm font-medium text-slate-500 flex items-center gap-2">
                        <Wallet size={14} /> <span>Tổng dư</span>
@@ -181,22 +232,51 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     </span>
                  </div>
 
-                 <div className="bg-blue-600 p-3 md:p-5 rounded-lg md:rounded-xl shadow-lg text-white relative overflow-hidden flex flex-col justify-center min-h-[70px] md:min-h-[80px]">
-                    <div className="absolute top-[-5px] right-[-5px] p-2 opacity-10 block pointer-events-none">
-                       <DollarSign size={60} className="md:w-[80px] md:h-[80px] text-white" />
+                 {/* UPDATED: Compact Shareholding Breakdown */}
+                 <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    {/* Total Header - Most important info first */}
+                    <div className="bg-blue-50/80 p-3 flex justify-between items-center border-b border-blue-100">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-blue-100 text-blue-600 rounded">
+                                <PieChart size={14} />
+                            </div>
+                            <span className="text-xs font-bold text-blue-800 uppercase tracking-wide">Tổng thanh toán</span>
+                        </div>
+                        <span className="text-lg font-bold text-blue-700">{formatCurrency(paymentAmount)}</span>
                     </div>
-                    
-                    <p className="text-[10px] md:text-xs font-bold text-blue-100 uppercase tracking-wider mb-0.5 md:mb-1 flex items-center gap-1 z-10 relative">
-                       Thanh toán (Chia 4)
-                    </p>
-                    <p className="text-2xl md:text-3xl font-bold tracking-tight z-10 relative">{formatCurrency(paymentAmount)}</p>
-                    <p className="text-[10px] md:text-xs text-blue-100 mt-0.5 md:mt-1 opacity-80 z-10 relative">
-                       {count} bản ghi
-                    </p>
+
+                    <div className="p-3 space-y-3">
+                        {/* Owner Share */}
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-600 font-medium flex items-center gap-2">
+                                <UserCheck size={16} className="text-slate-400"/>
+                                Chia theo cổ phần
+                            </span>
+                            <span className="font-bold text-slate-800">{formatCurrency(shareStats.ownerTotal)}</span>
+                        </div>
+
+                        {/* Shareholders List - Condensed */}
+                        {Object.keys(shareStats.shareholderTotals).length > 0 && (
+                            <div className="pt-2 border-t border-slate-100 space-y-2">
+                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <Users size={12} />
+                                    <span>Phần giữ hộ</span>
+                                </div>
+                                <div className="bg-slate-50 rounded border border-slate-100 p-2 space-y-1.5">
+                                    {Object.entries(shareStats.shareholderTotals).map(([name, amount]) => (
+                                        <div key={name} className="flex justify-between items-center text-xs">
+                                            <span className="text-slate-600 font-medium">{name}</span>
+                                            <span className="font-bold text-slate-800">{formatCurrency(amount as number)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                  </div>
               </div>
 
-              {/* Note Input - MOVED HERE BELOW THE PAYMENT CARD */}
+              {/* Note Input */}
               <div className="flex flex-col gap-1.5 md:mt-2">
                  <label className="text-xs font-semibold text-slate-600">Ghi chú kỳ thanh toán</label>
                  <textarea

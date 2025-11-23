@@ -1,4 +1,5 @@
 
+
 import { Transaction, TransactionStatus, TransactionBreakdown } from '../types';
 
 // Helper tạo dữ liệu chi tiết mặc định
@@ -83,7 +84,7 @@ export const MOCK_DATABASE: Transaction[] = [
   { id: 't11-18', date: '18/11/2025', revenue: 27500, sharedExpense: 12500, privateExpense: 0, totalBalance: 15000, splitBalance: 15000, remainingBalance: 15000, note: "", status: TransactionStatus.VERIFIED, details: 'Chi tiết', isShared: true, breakdown: createBreakdown(27500, 12500, true) },
   { id: 't11-20', date: '20/11/2025', revenue: 18500, sharedExpense: 11500, privateExpense: 0, totalBalance: 7000, splitBalance: 3500, remainingBalance: 3500, note: "Chạy 1 mình", status: TransactionStatus.VERIFIED, details: 'Chi tiết', isShared: false, breakdown: createBreakdown(18500, 11500, false) },
   { id: 't11-22', date: '22/11/2025', revenue: 30200, sharedExpense: 13000, privateExpense: 0, totalBalance: 17200, splitBalance: 17200, remainingBalance: 17200, note: "", status: TransactionStatus.AI_GENERATED, details: 'Chi tiết', isShared: true, breakdown: createBreakdown(30200, 13000, true) },
-  { id: 't11-24', date: '24/11/2025', revenue: 29800, sharedExpense: 12900, privateExpense: 0, totalBalance: 16900, splitBalance: 16900, remainingBalance: 16900, note: "", status: TransactionStatus.VERIFIED, details: 'Chi tiết', isShared: true, breakdown: createBreakdown(29800, 12900, true) },
+  { id: 't11-24', date: '24/10/2025', revenue: 29800, sharedExpense: 12900, privateExpense: 0, totalBalance: 16900, splitBalance: 16900, remainingBalance: 16900, note: "", status: TransactionStatus.VERIFIED, details: 'Chi tiết', isShared: true, breakdown: createBreakdown(29800, 12900, true) },
   { id: 't11-26', date: '26/11/2025', revenue: 35000, sharedExpense: 13500, privateExpense: 2500, totalBalance: 21500, splitBalance: 21500, remainingBalance: 19000, note: "Nộp phạt", status: TransactionStatus.VERIFIED, details: 'Chi tiết', isShared: true, breakdown: createBreakdown(35000, 13500, true) },
   { id: 't11-28', date: '28/11/2025', revenue: 26500, sharedExpense: 12500, privateExpense: 0, totalBalance: 14000, splitBalance: 14000, remainingBalance: 14000, note: "", status: TransactionStatus.AI_GENERATED, details: 'Chi tiết', isShared: true, breakdown: createBreakdown(26500, 12500, true) },
   { id: 't11-30', date: '30/11/2025', revenue: 41000, sharedExpense: 14200, privateExpense: 0, totalBalance: 26800, splitBalance: 26800, remainingBalance: 26800, note: "Chốt sổ", status: TransactionStatus.VERIFIED, details: 'Chi tiết', isShared: true, breakdown: createBreakdown(41000, 14200, true) },
