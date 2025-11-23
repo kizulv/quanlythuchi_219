@@ -101,7 +101,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   // NEW: State for Total Expense Input (Since Fixed Expense is now calculated)
   const [totalExpenseInput, setTotalExpenseInput] = useState(0);
 
-  // Track the auto-generated note part when the modal opens to avoid duplication on save
+  // Track the auto-generated note part to prevent duplication
   const [initialAutoNote, setInitialAutoNote] = useState("");
   
   // Alert Dialog State
@@ -157,6 +157,39 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   // Helper: Format value for display
   const formatForDisplay = (val: number) =>
     new Intl.NumberFormat("vi-VN").format(Math.round(val));
+
+  // Helper: Generate Auto Note String from lists
+  const generateAutoDetails = (
+    revItems: OtherRevenueItem[], 
+    expItems: OtherExpenseItem[], 
+    privItems: PrivateExpenseItem[], 
+    isSharedMode: boolean
+  ) => {
+      const details: string[] = [];
+      
+      revItems.forEach(item => {
+        if (item.description && item.amount !== 0) {
+          details.push(`${item.description} (${formatForDisplay(item.amount)})`);
+        }
+      });
+      
+      expItems.forEach(item => {
+        if (item.description && item.amount !== 0) {
+          details.push(`${item.description} (-${formatForDisplay(item.amount)})`);
+        }
+      });
+      
+      // Only add private expenses to note if not shared (visible)
+      if (!isSharedMode) {
+        privItems.forEach(item => {
+          if (item.description && item.amount !== 0) {
+            details.push(`${item.description} (-${formatForDisplay(item.amount)})`);
+          }
+        });
+      }
+
+      return details.join('. ');
+  };
 
   // Helper: Parse "DD/MM/YYYY" string to Date object
   const parseDateString = (dateStr: string): Date => {
@@ -294,23 +327,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       }
 
       // Calculate Initial Auto Note String based on loaded items
-      const initialDetails: string[] = [];
-      initRev.forEach(item => {
-        if (item.description && item.amount !== 0) {
-          initialDetails.push(`${item.description} (${formatForDisplay(item.amount)})`);
-        }
-      });
-      initExp.forEach(item => {
-         if (item.description && item.amount !== 0) {
-          initialDetails.push(`${item.description} (-${formatForDisplay(item.amount)})`);
-        }
-      });
-      initPriv.forEach(item => {
-         if (item.description && item.amount !== 0) {
-          initialDetails.push(`${item.description} (-${formatForDisplay(item.amount)})`);
-        }
-      });
-      setInitialAutoNote(initialDetails.join('. '));
+      const autoNote = generateAutoDetails(initRev, initExp, initPriv, transaction.isShared);
+      setInitialAutoNote(autoNote);
     }
   }, [transaction]);
 
@@ -489,7 +507,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     }
 
     // CRITICAL: Check for duplicate date BEFORE saving
-    
     if (onCheckExists) {
         const existing = onCheckExists(date);
         
@@ -508,41 +525,25 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         }
     }
 
-    // Generate auto content for note from dynamic items
-    const autoDetails: string[] = [];
+    // --- AUTO NOTE LOGIC FIX ---
     
-    otherRevenues.forEach(item => {
-      if (item.description && item.amount !== 0) {
-        autoDetails.push(`${item.description} (${formatForDisplay(item.amount)})`);
-      }
-    });
+    // 1. Generate the NEW auto note string based on current dynamic items
+    const newAutoNoteString = generateAutoDetails(otherRevenues, otherExpenses, privateExpenses, breakdown.isShared);
 
-    otherExpenses.forEach(item => {
-       if (item.description && item.amount !== 0) {
-        autoDetails.push(`${item.description} (-${formatForDisplay(item.amount)})`);
-      }
-    });
-
-    // Only add private expenses to note if not shared (visible)
-    if (!breakdown.isShared) {
-      privateExpenses.forEach(item => {
-         if (item.description && item.amount !== 0) {
-          autoDetails.push(`${item.description} (-${formatForDisplay(item.amount)})`);
-        }
-      });
-    }
-
-    const newAutoNoteString = autoDetails.join('. ');
+    // 2. Clean up the current user note
+    // We remove the *previous* auto note (initialAutoNote) from the text area content
     let finalNote = note;
-
-    // Smart Clean
     if (initialAutoNote && finalNote.includes(initialAutoNote)) {
       finalNote = finalNote.replace(initialAutoNote, "");
     }
+    
+    // Clean trailing dots/spaces left by removal
     finalNote = finalNote.trim();
     while (finalNote.endsWith('.') || finalNote.endsWith(' ')) {
         finalNote = finalNote.slice(0, -1);
     }
+    
+    // 3. Append the NEW auto note
     if (newAutoNoteString) {
         if (finalNote.length > 0) {
              finalNote = `${finalNote}. ${newAutoNoteString}`;
@@ -550,7 +551,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
              finalNote = newAutoNoteString;
         }
     }
+    
+    // Standardize spacing/dots
     finalNote = finalNote.replace(/\s+\./g, '.').replace(/\.\./g, '.').trim();
+
+    // 4. Update the tracker state so subsequent saves know what to remove
+    setInitialAutoNote(newAutoNoteString);
+    setNote(finalNote); // Also update the UI state to match what we are saving
 
     // Determine new status based on rules
     let newStatus = transaction.status;
