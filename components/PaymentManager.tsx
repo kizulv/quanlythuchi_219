@@ -256,8 +256,8 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
              <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1100px]">
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                    <tr>
-                      <th className="h-12 px-4 align-middle w-[150px]">Kỳ thanh toán</th>
-                      <th className="h-12 px-4 align-middle w-[130px]">Ngày tạo</th>
+                      <th className="h-12 px-4 align-middle text-center w-[200px]">Kỳ thanh toán</th>
+                      <th className="h-12 px-4 align-middle text-center w-[130px]">Ngày tạo</th>
                       <th className="h-12 px-4 align-middle text-center w-[80px]">Phiếu</th>
                       <th className="h-12 px-4 align-middle text-right w-[100px]">Cổ tức</th>
                       <th className="h-12 px-4 align-middle text-right w-[100px]">Giữ hộ</th>
@@ -277,7 +277,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
 
                       return (
                         <tr key={cycle.id} className="hover:bg-slate-50/80 transition-colors group">
-                           <td className="px-4 py-4 align-middle">
+                           <td className="px-9 py-4 align-middle">
                               <div className="flex items-center gap-2">
                                  <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs border border-blue-100">
                                     {cycle.id.split('.')[1]}
