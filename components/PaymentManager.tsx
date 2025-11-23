@@ -256,12 +256,12 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
              <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1100px]">
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                    <tr>
-                      <th className="h-12 px-4 align-middle w-[140px]">Kỳ thanh toán</th>
-                      <th className="h-12 px-4 align-middle w-[120px]">Ngày tạo</th>
-                      <th className="h-12 px-4 align-middle text-center w-[60px]">Phiếu</th>
-                      <th className="h-12 px-4 align-middle text-right w-[120px]">Cổ tức</th>
-                      <th className="h-12 px-4 align-middle text-right w-[120px]">Giữ hộ</th>
-                      <th className="h-12 px-4 align-middle text-right w-[130px]">Tổng (VNĐ)</th>
+                      <th className="h-12 px-4 align-middle w-[150px]">Kỳ thanh toán</th>
+                      <th className="h-12 px-4 align-middle w-[130px]">Ngày tạo</th>
+                      <th className="h-12 px-4 align-middle text-center w-[80px]">Phiếu</th>
+                      <th className="h-12 px-4 align-middle text-right w-[100px]">Cổ tức</th>
+                      <th className="h-12 px-4 align-middle text-right w-[100px]">Giữ hộ</th>
+                      <th className="h-12 px-4 align-middle text-right w-[100px]">Tổng</th>
                       <th className="h-12 px-4 align-middle">Ghi chú</th>
                       <th className="h-12 px-4 align-middle text-right w-[120px]">Thao tác</th>
                    </tr>
