@@ -204,33 +204,33 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
           </div>
        </div>
 
-       {/* Stats Cards - Updated to grid-cols-2 on mobile */}
+       {/* Stats Cards - Compact Mode (No diff) */}
        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
           <StatsCard 
              title="Tổng đã thanh toán" 
-             value={stats.totalAmount} 
-             diff={0} 
+             value={stats.totalAmount}
+             showDiff={false} 
              icon={CheckCircle}
              variant="emerald"
           />
           <StatsCard 
              title="Tổng cổ tức" 
              value={stats.totalDividend} 
-             diff={0} 
+             showDiff={false}
              icon={PieChart}
              variant="blue"
           />
           <StatsCard 
              title="Số kỳ đã chốt" 
              value={stats.totalCycles} 
-             diff={0} 
+             showDiff={false}
              icon={Calendar}
              variant="indigo"
           />
           <StatsCard 
              title="TB mỗi kỳ" 
              value={stats.avgAmount} 
-             diff={0} 
+             showDiff={false}
              icon={TrendingUp}
              variant="slate"
           />
