@@ -243,7 +243,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                  {/* UPDATED: Compact Shareholding Breakdown */}
                  <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     {/* 1. Total Payment on Top (Blue Background) */}
-                    <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+                    <div className="bg-blue-600 px-4 py-2 flex justify-between items-center text-white">
                         <div className="flex items-center gap-2">
                             <div className="p-1.5 bg-white/20 rounded">
                                 <PieChart size={16} className="text-white" />
