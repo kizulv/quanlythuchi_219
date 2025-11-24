@@ -91,8 +91,14 @@ export const Dashboard: React.FC = () => {
   // Initial Data Load & Responsive Check
   useEffect(() => {
     const loadMetadata = async () => {
-      const loadedCycles = await db.getPaymentCycles();
-      setCycles(loadedCycles);
+      try {
+        const loadedCycles = await db.getPaymentCycles();
+        setCycles(loadedCycles);
+      } catch (error) {
+        console.error("Failed to load metadata", error);
+        // Silent fail or toast, prevents crash
+        toast.error("Không thể kết nối tới cơ sở dữ liệu.");
+      }
     };
     loadMetadata();
   }, [isPaymentModalOpen, currentView]); 
@@ -142,9 +148,13 @@ export const Dashboard: React.FC = () => {
   // Special Effect: Always Calculate Open Balance (Current Cycle) for Reconciliation
   useEffect(() => {
      const calcOpenBalance = async () => {
-        const openItems = await db.getTransactionsByCycle(undefined);
-        const total = openItems.reduce((acc, t) => acc + t.remainingBalance, 0);
-        setOpenBalance(total);
+        try {
+          const openItems = await db.getTransactionsByCycle(undefined);
+          const total = openItems.reduce((acc, t) => acc + t.remainingBalance, 0);
+          setOpenBalance(total);
+        } catch (e) {
+          console.error("Failed to calc open balance", e);
+        }
      };
      calcOpenBalance();
   }, [transactions, isReconciliationModalOpen]);
@@ -152,55 +162,59 @@ export const Dashboard: React.FC = () => {
   // Calculate Global All-Time Stats
   useEffect(() => {
     const fetchGlobalStats = async () => {
-       const allTrans = await db.getAll();
-       const buses = await db.getBuses();
-       
-       let totalAll = 0;
-       let shareAll = 0;
-       let totalYear = 0;
-       let shareYear = 0;
+       try {
+         const allTrans = await db.getAll();
+         const buses = await db.getBuses();
+         
+         let totalAll = 0;
+         let shareAll = 0;
+         let totalYear = 0;
+         let shareYear = 0;
 
-       const currentYear = new Date().getFullYear();
+         const currentYear = new Date().getFullYear();
 
-       allTrans.forEach(t => {
-           // 1. Calculate Base Total
-           totalAll += t.remainingBalance;
+         allTrans.forEach(t => {
+             // 1. Calculate Base Total
+             totalAll += t.remainingBalance;
 
-           // 2. Calculate Share Logic
-           let shareAmount = 0;
-           const busId = t.breakdown?.busId;
-           const bus = buses.find(b => b.licensePlate === busId);
+             // 2. Calculate Share Logic
+             let shareAmount = 0;
+             const busId = t.breakdown?.busId;
+             const bus = buses.find(b => b.licensePlate === busId);
 
-           if (bus && bus.isShareholding) {
-              // Shareholding Bus: Calculate percentage based on Owner + Held shares
-              let totalPercent = bus.sharePercentage;
-              if (bus.shareholders) {
-                 totalPercent += bus.shareholders.reduce((sum, s) => sum + s.percentage, 0);
-              }
-              shareAmount = (t.remainingBalance * totalPercent) / 100;
-           } else {
-              // Non-shareholding Bus: Assume 100% ownership of the remaining balance
-              shareAmount = t.remainingBalance;
-           }
-           shareAll += shareAmount;
+             if (bus && bus.isShareholding) {
+                // Shareholding Bus: Calculate percentage based on Owner + Held shares
+                let totalPercent = bus.sharePercentage;
+                if (bus.shareholders) {
+                   totalPercent += bus.shareholders.reduce((sum, s) => sum + s.percentage, 0);
+                }
+                shareAmount = (t.remainingBalance * totalPercent) / 100;
+             } else {
+                // Non-shareholding Bus: Assume 100% ownership of the remaining balance
+                shareAmount = t.remainingBalance;
+             }
+             shareAll += shareAmount;
 
-           // 3. Year Filter
-           const parts = t.date.split('/');
-           if (parts.length === 3) {
-              const year = parseInt(parts[2]);
-              if (year === currentYear) {
-                 totalYear += t.remainingBalance;
-                 shareYear += shareAmount;
-              }
-           }
-       });
+             // 3. Year Filter
+             const parts = t.date.split('/');
+             if (parts.length === 3) {
+                const year = parseInt(parts[2]);
+                if (year === currentYear) {
+                   totalYear += t.remainingBalance;
+                   shareYear += shareAmount;
+                }
+             }
+         });
 
-       setGlobalStats({
-         totalAll,
-         shareAll,
-         totalYear,
-         shareYear
-       });
+         setGlobalStats({
+           totalAll,
+           shareAll,
+           totalYear,
+           shareYear
+         });
+       } catch (error) {
+         console.error("Failed to fetch global stats", error);
+       }
     };
     
     // Refresh stats when transactions or view changes
