@@ -576,7 +576,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                   </div>
                   <div className="flex flex-col items-end justify-center">
                     <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 hidden md:block">Đơn vị tính</span>
-                    <span className="text-[10px] font-semibold bg-slate-100 px-2 py-1 md:px-3 md:py-1.5 rounded-md border border-slate-200 text-xs italic text-slate-500 lowercase">Nghìn đồng</span>
+                    <span className="text-xs italic lowercase text-slate-500">nghìn đồng</span>
                   </div>
                </div>
             </div>
@@ -692,7 +692,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                     <div className={gridClass}>
                        <span className="text-xs md:text-sm font-medium text-slate-600">Tổng dư (Thu-Chi)</span>
                        {isManualBalanceMode ? (
-                          <SmartInput value={customTotalBalance} onCommit={setCustomTotalBalance} className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-xs md:text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all" readOnly={isPaid} />
+                          <SmartInput value={customTotalBalance} onCommit={setCustomTotalBalance} placeholder="" className="w-full text-right h-8 rounded border border-primary/50 bg-white px-2 text-xs md:text-sm font-bold text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all" readOnly={isPaid} />
                        ) : (
                           <div className="w-full h-8 flex items-center justify-end px-2"><span className="font-bold text-xs md:text-sm text-slate-800">{formatForDisplay(totalBalance)}</span></div>
                        )}
@@ -702,6 +702,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        <div className="w-full h-8 flex items-center justify-end px-2"><span className="font-bold text-xs md:text-sm text-slate-800">{formatForDisplay(splitBalance)}</span></div>
                     </div>
                     
+                    {/* ALWAYS SHOW PRIVATE EXPENSE */}
                     <div className="h-px bg-slate-200 my-1 col-span-2"></div>
                     <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
                          <div className={gridClass}><span className="text-xs md:text-sm font-medium text-slate-600">Trừ chi riêng</span><div className="w-full h-8 flex items-center justify-end px-2"><span className="font-bold text-xs md:text-sm text-slate-800">{formatForDisplay(totalPrivateExpense)}</span></div></div>

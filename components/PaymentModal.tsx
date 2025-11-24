@@ -229,12 +229,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 
                 <div className="relative z-10 flex items-center gap-2 md:mb-1 opacity-90 md:opacity-100">
                     <Calendar size={14} className="text-slate-300 md:text-white md:w-4 md:h-4" />
-                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider">Kỳ thanh toán</span>
+                    <span className="text-[13px] font-bold uppercase tracking-wider">Tháng {selectedMonth}/{selectedYear}</span>
                     {editingCycle && <Lock size={12} className="text-orange-300 ml-1" />}
-                </div>
-                
-                <div className="relative z-10 text-base md:text-2xl font-bold tracking-tight">
-                    Tháng {selectedMonth}/{selectedYear}
                 </div>
               </div>
 
@@ -260,7 +256,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 <div className="p-1 bg-white rounded-full border border-slate-200 shadow-sm text-blue-600">
                                    <UserCheck size={14} />
                                 </div>
-                                <span className="text-sm font-semibold text-slate-700">Chủ xe giữ lại</span>
+                                <span className="text-sm font-semibold text-slate-700">Chia cổ phần</span>
                              </div>
                              <span className="font-bold text-slate-900">{formatCurrency(shareStats.ownerTotal)}</span>
                         </div>
@@ -270,7 +266,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <div className="rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
                                 <div className="px-3 py-2 bg-slate-100/50 border-b border-slate-200 flex items-center gap-2">
                                      <Users size={12} className="text-slate-500"/>
-                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trả cổ đông</span>
+                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phần giữ hộ</span>
                                 </div>
                                 <div className="divide-y divide-slate-100">
                                     {Object.entries(shareStats.shareholderTotals).map(([name, amount]) => (
@@ -348,7 +344,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       <th className="h-10 px-2 text-right w-[90px]">Tổng dư</th>
                       <th className="h-10 px-2 text-right w-[90px]">Cổ tức</th>
                       <th className="h-10 px-2 text-right w-[90px]">Giữ hộ</th>
-                      <th className="h-10 px-2 text-center hidden md:table-cell w-[120px]">Trạng thái</th>
+                      <th className="h-10 px-2 text-center hidden md:table-cell w-[140px]">Trạng thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">

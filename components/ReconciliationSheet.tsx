@@ -1,12 +1,11 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Sheet } from './ui/Sheet';
-import { Save, Trash2, Plus, Archive, Wallet, Landmark, Banknote, X } from 'lucide-react';
+import { Save, Trash2, Plus, Archive, Wallet, Landmark, Banknote, X, PieChart, Users, Clock } from 'lucide-react';
 import { Button } from './ui/Button';
 import { SmartInput } from './ui/SmartInput';
 import { toast } from 'sonner';
 import { db } from '../services/database';
-import { ReconItem, ReconciliationReport } from '../types';
+import { ReconItem, ReconciliationReport, Bus } from '../types';
 
 interface ReconciliationSheetProps {
   isOpen: boolean;
@@ -38,12 +37,12 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
 
   // 3. Deductions State
   const [existingMoney, setExistingMoney] = useState(0); // Tiền hiện có (Đã cất/Đã chốt)
+
+  // 4. Bus Data for Split Calculation
+  const [mainBus, setMainBus] = useState<Bus | undefined>(undefined);
   
   // Loading State
   const [isLoading, setIsLoading] = useState(false);
-
-  // Constants & Calculations
-  const busSurplusTarget = currentBalance / 2; // Dư xe phải có
 
   // Fetch data on open or when variant/month changes
   useEffect(() => {
@@ -56,6 +55,11 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
     setIsLoading(true);
     try {
       const data = await db.getReconciliation(month, year);
+      const buses = await db.getBuses();
+      // Find the main shareholding bus
+      const foundBus = buses.find(b => b.isShareholding);
+      setMainBus(foundBus);
+
       if (data) {
         setCashStorage(data.cashStorage);
         setCashWallet(data.cashWallet);
@@ -79,6 +83,37 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
       setIsLoading(false);
     }
   };
+
+  // --- Calculations for Target Surplus ---
+  const breakdown = useMemo(() => {
+    if (!mainBus) {
+       // Fallback logic if no bus config found: simple 50% split
+       const half = currentBalance / 2;
+       return {
+          totalTarget: half,
+          ownerShare: half,
+          shareholders: []
+       };
+    }
+
+    // Calculate based on bus percentages
+    const ownerAmount = (currentBalance * mainBus.sharePercentage) / 100;
+    const shareholders = (mainBus.shareholders || []).map(sh => ({
+        name: sh.name,
+        amount: (currentBalance * sh.percentage) / 100
+    }));
+    
+    const totalHeld = shareholders.reduce((acc, curr) => acc + curr.amount, 0);
+    const totalTarget = ownerAmount + totalHeld;
+
+    return {
+        totalTarget,
+        ownerShare: ownerAmount,
+        shareholders
+    };
+  }, [currentBalance, mainBus]);
+
+  const busSurplusTarget = breakdown.totalTarget;
 
   // Dynamic List Handlers
   const addItem = (list: ReconItem[], setList: React.Dispatch<React.SetStateAction<ReconItem[]>>) => {
@@ -110,7 +145,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
   const totalAdjustedAssets = totalRealAssets + totalPaid - totalDebt;
   const discrepancy = totalAdjustedAssets - busSurplusTarget - existingMoney;
   
-  const formatNumber = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
+  const formatNumber = (val: number) => new Intl.NumberFormat('vi-VN').format(Math.round(val));
 
   const handleSaveReport = async () => {
     try {
@@ -214,24 +249,61 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
         </div>
 
         {/* 2. DỮ LIỆU ĐỐI CHIẾU (Hệ thống & Đã cất) */}
-        <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 space-y-3">
+        <div className="space-y-3">
            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-2 flex items-center gap-2">
               <Archive size={14} className="text-slate-400"/>
               Dữ liệu đối chiếu
            </h3>
            
-           {/* Dư xe */}
-           <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-slate-600">Tiền dư xe (Kỳ hiện tại / 2)</span>
-              <span className="font-bold text-slate-900">{formatNumber(busSurplusTarget)}</span>
+           {/* Thẻ Tổng Thanh Toán - Re-styled as per request */}
+           <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+              {/* Header */}
+              <div className="bg-slate-900 px-4 py-3.5 flex justify-between items-center text-white">
+                <div className="flex items-center gap-2.5">
+                   <div className="p-1.5 bg-white/10 rounded-lg border border-white/10">
+                      <Clock size={16} className="text-slate-200" />
+                   </div>
+                   <span className="text-xs font-bold uppercase tracking-wider text-slate-100">TỔNG THANH TOÁN</span>
+                </div>
+                <span className="text-xl font-bold tracking-tight">{formatNumber(breakdown.totalTarget)}</span>
+              </div>
+              
+              {/* Body */}
+              <div className="p-3 bg-white space-y-2">
+                 {/* Row 1: Chia cổ phần */}
+                 <div className="flex justify-between items-center px-3 py-2 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                       <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+                          <PieChart size={14} />
+                       </div>
+                       <span className="text-sm font-bold text-slate-700">Chia cổ phần</span>
+                    </div>
+                    <span className="font-bold text-base text-slate-900">{formatNumber(breakdown.ownerShare)}</span>
+                 </div>
+
+                 {/* Row 2+: Shareholders */}
+                 {breakdown.shareholders.map((sh, idx) => (
+                    <div key={idx} className="flex justify-between items-center px-3 py-2 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200">
+                              <Users size={14} />
+                           </div>
+                           <span className="text-sm font-bold text-slate-700">{sh.name}</span>
+                        </div>
+                        <span className="font-bold text-base text-slate-900">{formatNumber(sh.amount)}</span>
+                    </div>
+                 ))}
+              </div>
            </div>
 
            {/* Tiền hiện có */}
-           <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-slate-600">Tiền hiện có (Đã cất / Đã chốt)</span>
-              <div className="w-[120px] relative group">
-                 <Banknote size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
-                 <SmartInput value={existingMoney} onCommit={setExistingMoney} className={`${inputClass} bg-white border-slate-300`} />
+           <div className="bg-slate-50 rounded-lg border border-slate-200 p-2">
+              <div className="flex justify-between items-center">
+                 <span className="text-sm font-medium text-slate-600 pl-2">Tiền hiện có (Đã cất / Đã chốt)</span>
+                 <div className="w-[120px] relative group">
+                    <Banknote size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
+                    <SmartInput value={existingMoney} onCommit={setExistingMoney} className={`${inputClass} bg-white border-slate-300`} />
+                 </div>
               </div>
            </div>
         </div>

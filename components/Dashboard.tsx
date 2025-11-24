@@ -480,8 +480,9 @@ export const Dashboard: React.FC = () => {
       </aside>
 
       {/* RIGHT SIDEBAR (Desktop Only - Toggleable) */}
+      {/* Changed: Removed border-l and shadow to make it seamless */}
       <aside
-        className={`fixed right-0 top-0 h-full w-[400px] bg-white z-30 border-l hidden md:block transition-transform duration-300 ${
+        className={`fixed right-0 top-0 h-full w-[400px] bg-white z-30 hidden md:block transition-transform duration-300 ${
            isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -542,25 +543,27 @@ export const Dashboard: React.FC = () => {
               </div>
               
               <div className="flex w-full md:w-auto gap-3 items-center md:self-auto">
-                {/* Desktop Right Sidebar Toggle */}
-                <button 
-                  onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                  className="hidden md:flex items-center justify-center p-2.5 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-                  title={isRightSidebarOpen ? "Ẩn đối soát" : "Hiện đối soát"}
-                >
-                   {isRightSidebarOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
-                </button>
-
                 {(!selectedCycleId || isLatestCycle) && (
-                  <Button 
-                    variant="primary" 
-                    size="md" 
-                    icon={isLatestCycle ? <Edit size={16}/> : <CreditCard size={16}/>}
-                    onClick={handleOpenPaymentModal}
-                    className="rounded-full bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-200 text-white border-none text-sm flex-1 md:flex-none justify-center px-6"
-                  >
-                      {isLatestCycle ? "Sửa thanh toán" : "Tạo thanh toán"}
-                  </Button>
+                  <>
+                     {/* Added: Desktop Right Sidebar Toggle Button next to Create Payment */}
+                     <button 
+                        onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                        className="hidden md:flex items-center justify-center p-2.5 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                        title={isRightSidebarOpen ? "Ẩn đối soát" : "Hiện đối soát"}
+                     >
+                        {isRightSidebarOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
+                     </button>
+
+                     <Button 
+                        variant="primary" 
+                        size="md" 
+                        icon={isLatestCycle ? <Edit size={16}/> : <CreditCard size={16}/>}
+                        onClick={handleOpenPaymentModal}
+                        className="rounded-full bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-200 text-white border-none text-sm flex-1 md:flex-none justify-center px-6"
+                     >
+                        {isLatestCycle ? "Sửa thanh toán" : "Tạo thanh toán"}
+                     </Button>
+                  </>
                 )}
               </div>
             </div>
