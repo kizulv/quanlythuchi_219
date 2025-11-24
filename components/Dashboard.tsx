@@ -376,7 +376,8 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex overflow-hidden">
+    // Changed min-h-screen to h-[100dvh] and added overflow-hidden to parent
+    <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 flex overflow-hidden">
       {/* Mobile Backdrop Overlay (Left Sidebar) */}
       {isSidebarOpen && (
         <div 
@@ -406,7 +407,7 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
             <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mt-2">Quản lý</div>
             
             <div 
@@ -480,7 +481,6 @@ export const Dashboard: React.FC = () => {
       </aside>
 
       {/* RIGHT SIDEBAR (Desktop Only - Toggleable) */}
-      {/* Changed: Removed border-l and shadow to make it seamless */}
       <aside
         className={`fixed right-0 top-0 h-full w-[400px] bg-white z-30 hidden md:block transition-transform duration-300 ${
            isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'
@@ -498,10 +498,11 @@ export const Dashboard: React.FC = () => {
       </aside>
 
       {/* Main Content - Adapts margin based on sidebar state */}
+      {/* Added custom-scrollbar here to ensure internal scrolling */}
       <main 
          className={`flex-1 w-full h-full overflow-y-auto transition-all duration-300 md:ml-64 ${
             isRightSidebarOpen ? 'md:mr-[400px]' : 'md:mr-0'
-         }`}
+         } custom-scrollbar relative`}
       >
         
         {/* VIEW SWITCHING */}
