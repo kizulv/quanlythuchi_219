@@ -156,7 +156,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       />
 
       {/* Changed max-w-[95vw] to max-w-[1200px] */}
-      <div className="relative z-[70] w-full max-w-[1200px] bg-white md:rounded-xl shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-200 flex flex-col max-h-[98vh]">
+      <div className="relative z-[70] w-full max-w-[1300px] bg-white md:rounded-xl shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-200 flex flex-col max-h-[98vh]">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0 rounded-t-xl">
