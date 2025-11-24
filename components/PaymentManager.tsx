@@ -13,13 +13,14 @@ import {
   Menu,
   Plus,
   PieChart,
-  Wallet
+  FileText
 } from 'lucide-react';
 import { PaymentCycle, Transaction, Bus } from '../types';
 import { db } from '../services/database';
 import { Button } from './ui/Button';
 import { StatsCard } from './StatsCard';
 import { PaymentModal } from './PaymentModal';
+import { ReportModal } from './ReportModal';
 import { AlertDialog } from './ui/AlertDialog';
 import { toast } from 'sonner';
 
@@ -43,6 +44,10 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
   const [editingCycle, setEditingCycle] = useState<PaymentCycle | undefined>(undefined);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
+
+  // Report State
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportCycle, setReportCycle] = useState<PaymentCycle | undefined>(undefined);
 
   // Delete State
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -132,6 +137,11 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
     }
     setEditingCycle(cycle);
     setIsEditModalOpen(true);
+  };
+
+  const handleOpenReport = (cycle: PaymentCycle) => {
+    setReportCycle(cycle);
+    setIsReportModalOpen(true);
   };
 
   const handleDeleteClick = (id: string, index: number) => {
@@ -263,7 +273,7 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
                       <th className="h-12 px-4 align-middle text-right w-[100px]">Giữ hộ</th>
                       <th className="h-12 px-4 align-middle text-right w-[100px]">Tổng</th>
                       <th className="h-12 px-4 align-middle">Ghi chú</th>
-                      <th className="h-12 px-4 align-middle text-right w-[120px]">Thao tác</th>
+                      <th className="h-12 px-4 align-middle text-right w-[160px]">Thao tác</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -308,7 +318,6 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
                            {/* Giữ hộ */}
                            <td className="px-4 py-4 align-middle text-right">
                               <span className="font-semibold text-orange-600">
-                                {/* CHANGED: Allow negative values (loss sharing) */}
                                 {split.held !== 0 ? formatCurrency(split.held) : '-'}
                               </span>
                            </td>
@@ -323,6 +332,15 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
                            </td>
                            <td className="px-4 py-4 align-middle text-right">
                               <div className="flex justify-end gap-2">
+                                 {/* Report Button (NEW) */}
+                                 <button 
+                                    onClick={() => handleOpenReport(cycle)}
+                                    className="h-8 w-8 flex items-center justify-center rounded border border-slate-200 bg-white text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-all shadow-sm"
+                                    title="Xem báo cáo"
+                                 >
+                                    <FileText size={14} />
+                                 </button>
+
                                  {/* Edit Button */}
                                  <button 
                                     onClick={() => handleEdit(cycle, index)}
@@ -382,6 +400,17 @@ export const PaymentManager: React.FC<PaymentManagerProps> = ({
              cycles={cycles}
              onConfirm={handleConfirmEdit}
              editingCycle={editingCycle}
+          />
+       )}
+
+       {/* Report Modal (NEW) */}
+       {isReportModalOpen && reportCycle && (
+          <ReportModal 
+             isOpen={isReportModalOpen}
+             onClose={() => { setIsReportModalOpen(false); setReportCycle(undefined); }}
+             transactions={allTransactions} 
+             cycle={reportCycle}
+             buses={buses}
           />
        )}
 
