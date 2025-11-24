@@ -258,7 +258,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
            {/* Thẻ Tổng Thanh Toán - Re-styled as per request */}
            <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
               {/* Header */}
-              <div className="bg-slate-900 px-4 py-3.5 flex justify-between items-center text-white">
+              <div className="bg-slate-900 px-4 py-1 flex justify-between items-center text-white">
                 <div className="flex items-center gap-2.5">
                    <div className="p-1.5 bg-white/10 rounded-lg border border-white/10">
                       <Clock size={16} className="text-slate-200" />
@@ -271,7 +271,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
               {/* Body */}
               <div className="p-3 bg-white space-y-2">
                  {/* Row 1: Chia cổ phần */}
-                 <div className="flex justify-between items-center px-3 py-2 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                 <div className="flex justify-between items-center px-3 py-1 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-3">
                        <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
                           <PieChart size={14} />
@@ -283,7 +283,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
 
                  {/* Row 2+: Shareholders */}
                  {breakdown.shareholders.map((sh, idx) => (
-                    <div key={idx} className="flex justify-between items-center px-3 py-2 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                    <div key={idx} className="flex justify-between items-center px-3 py-1 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-3">
                            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200">
                               <Users size={14} />
@@ -299,7 +299,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
            {/* Tiền hiện có */}
            <div className="bg-slate-50 rounded-lg border border-slate-200 p-2">
               <div className="flex justify-between items-center">
-                 <span className="text-sm font-medium text-slate-600 pl-2">Tiền hiện có (Đã cất / Đã chốt)</span>
+                 <span className="text-sm font-medium text-slate-600 pl-2">Tiền hiện có</span>
                  <div className="w-[120px] relative group">
                     <Banknote size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
                     <SmartInput value={existingMoney} onCommit={setExistingMoney} className={`${inputClass} bg-white border-slate-300`} />
