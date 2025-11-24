@@ -255,7 +255,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
                                    <PieChart size={14} />
                                 </div>
-                                <span className="text-sm font-bold text-slate-700">Chia cổ phần</span>
+                                <span className="text-sm text-slate-700">Chia cổ phần</span>
                              </div>
                              <span className="font-bold text-base text-slate-900">{formatCurrency(shareStats.ownerTotal)}</span>
                         </div>
@@ -267,7 +267,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200">
                                       <Users size={14} />
                                    </div>
-                                   <span className="text-sm font-bold text-slate-700">{name}</span>
+                                   <span className="text-sm text-slate-700">{name}</span>
                                 </div>
                                 <span className="font-bold text-base text-slate-900">{formatCurrency(amount as number)}</span>
                             </div>

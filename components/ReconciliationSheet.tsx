@@ -206,9 +206,6 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
     <div className="space-y-5 pb-4">
         {/* Header Info */}
         <div className="flex items-center justify-between -mt-2 mb-2">
-           <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">
-             Đơn vị: Nghìn đồng
-           </span>
            {isLoading && <span className="text-xs text-slate-400 animate-pulse">Đang tải...</span>}
         </div>
         
@@ -276,7 +273,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
                        <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
                           <PieChart size={14} />
                        </div>
-                       <span className="text-sm font-bold text-slate-700">Chia cổ phần</span>
+                       <span className="text-sm text-slate-700">Chia cổ phần</span>
                     </div>
                     <span className="font-bold text-base text-slate-900">{formatNumber(breakdown.ownerShare)}</span>
                  </div>
@@ -288,7 +285,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
                            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200">
                               <Users size={14} />
                            </div>
-                           <span className="text-sm font-bold text-slate-700">{sh.name}</span>
+                           <span className="text-sm text-slate-700">{sh.name}</span>
                         </div>
                         <span className="font-bold text-base text-slate-900">{formatNumber(sh.amount)}</span>
                     </div>
@@ -436,7 +433,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
            </div>
            
            {/* Sidebar Content */}
-           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+           <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
                {renderContent()}
            </div>
 
