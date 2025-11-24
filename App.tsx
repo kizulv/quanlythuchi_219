@@ -1,5 +1,7 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
+import { db } from './services/database';
 import { Toaster } from 'sonner';
 
 /*
@@ -8,10 +10,15 @@ import { Toaster } from 'sonner';
   Framework: React 18 + Typescript
   Styling: TailwindCSS (No external CSS files)
   Icons: Lucide React
-  Data: Real-time JSON File Database via Vite API Middleware
+  Data: Simulated MongoDB via LocalStorage (services/database.ts)
 */
 
 const App: React.FC = () => {
+  useEffect(() => {
+    // Initialize Database (Seed with Mock Data if empty)
+    db.init();
+  }, []);
+
   return (
     <div className="antialiased">
       <Dashboard />

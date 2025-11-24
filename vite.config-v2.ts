@@ -4,167 +4,105 @@ import react from "@vitejs/plugin-react";
 import fs from "fs/promises";
 import { Buffer } from "buffer";
 import { fileURLToPath } from "url";
+import { jsonDbMiddleware } from "./server/jsonDb";
 
-// Fix for missing __dirname in ESM context
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- GENERIC DATABASE HELPER ---
-const dataDir = path.resolve((process as any).cwd(), "data");
-
-async function ensureDataDir() {
-  await fs.mkdir(dataDir, { recursive: true });
-}
-
-async function readDb(filename: string) {
-  try {
-    const filePath = path.join(dataDir, filename);
-    await ensureDataDir();
-    try {
-      await fs.access(filePath);
-    } catch {
-      // If file doesn't exist, return empty array
-      return [];
-    }
-    const content = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(content || "[]");
-  } catch (err) {
-    console.error(`Error reading DB ${filename}:`, err);
-    return [];
-  }
-}
-
-async function writeDb(filename: string, data: any) {
-  try {
-    const filePath = path.join(dataDir, filename);
-    await ensureDataDir();
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
-    return true;
-  } catch (err) {
-    console.error(`Error writing DB ${filename}:`, err);
-    return false;
-  }
-}
-
-// --- API MIDDLEWARE ---
-function createApiMiddleware() {
+function createSaveImageMiddleware() {
   const publicReportsDir = path.resolve(
-    (process as any).cwd(),
+    process.cwd(),
     "public",
     "images",
     "reports"
   );
 
-  async function ensureReportsDir() {
+  async function ensureDir() {
     await fs.mkdir(publicReportsDir, { recursive: true });
   }
 
-  return async function apiHandler(req: any, res: any, next: any) {
-    const { method, url } = req;
-    
-    // --- CORS & OPTIONS ---
-    if (method === "OPTIONS") {
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      });
-      res.end();
-      return;
-    }
-
-    // Helper to send JSON
-    const sendJson = (statusCode: number, data: any) => {
-      res.writeHead(statusCode, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
-      res.end(JSON.stringify(data));
-    };
-
-    // Helper to read body
-    const readBody = async () => {
-      let body = "";
-      for await (const chunk of req) {
-        body += chunk;
-      }
-      return body ? JSON.parse(body) : null;
-    };
-
+  return async function saveImageHandler(req, res, next) {
     try {
-      // --- IMAGE UPLOAD ENDPOINT ---
-      if (method === "POST" && url.startsWith("/save-image")) {
-        const data = await readBody();
+      if (req.method === "OPTIONS") {
+        res.writeHead(204, {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        });
+        res.end();
+        return;
+      }
+
+      if (
+        req.method === "POST" &&
+        req.url &&
+        req.url.startsWith("/save-image")
+      ) {
+        let body = "";
+        for await (const chunk of req) {
+          body += chunk;
+        }
+
+        const data = JSON.parse(body || "{}");
         const dataUrl = data.dataUrl;
         let baseFileName = data.baseFileName;
 
-        if (!dataUrl) return sendJson(400, { error: "dataUrl required" });
-        if (!baseFileName) baseFileName = `${new Date().toISOString().slice(0, 10)}.jpg`;
+        if (!dataUrl) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "dataUrl is required" }));
+          return;
+        }
 
-        await ensureReportsDir();
+        if (!baseFileName) {
+          const now = new Date();
+          baseFileName = `${now.toISOString().slice(0, 10)}.jpg`;
+        }
+
+        await ensureDir();
+
         const destPath = path.join(publicReportsDir, baseFileName);
-        
-        // Handle Rename if exists
         try {
           await fs.access(destPath);
           let counter = 1;
-          let oldRename = `${baseFileName.replace(/\.jpg$/i, "")}-${String(counter).padStart(2, "0")}.jpg`;
+          let oldRename = `${baseFileName.replace(/\.jpg$/i, "")}-${String(
+            counter
+          ).padStart(2, "0")}.jpg`;
           while (true) {
             try {
               await fs.access(path.join(publicReportsDir, oldRename));
               counter++;
-              oldRename = `${baseFileName.replace(/\.jpg$/i, "")}-${String(counter).padStart(2, "0")}.jpg`;
-            } catch { break; }
+              oldRename = `${baseFileName.replace(/\.jpg$/i, "")}-${String(
+                counter
+              ).padStart(2, "0")}.jpg`;
+            } catch (e) {
+              break;
+            }
           }
+
           await fs.rename(destPath, path.join(publicReportsDir, oldRename));
-        } catch {}
+        } catch (e) {
+          // not exists
+        }
 
         const matches = dataUrl.match(/^data:([a-zA-Z0-9/+.]+);base64,(.*)$/);
-        const buffer = Buffer.from(matches ? matches[2] : dataUrl, "base64");
+        const base64 = matches ? matches[2] : dataUrl;
+        const buffer = Buffer.from(base64, "base64");
+
         await fs.writeFile(destPath, buffer);
 
-        return sendJson(200, { url: `/images/reports/${baseFileName}` });
+        const publicUrl = `/images/reports/${baseFileName}`;
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        });
+        res.end(JSON.stringify({ url: publicUrl }));
+        return;
       }
-
-      // --- GENERIC API HANDLER ---
-      // Endpoint mapping: /api/collectionName
-      if (url.startsWith("/api/")) {
-        const collection = url.split("/")[2]?.split("?")[0]; // e.g. "transactions"
-        const filename = `${collection}.json`;
-        
-        // 1. GET ALL
-        if (method === "GET") {
-          const data = await readDb(filename);
-          return sendJson(200, data);
-        }
-
-        // 2. POST (Upsert - Create or Update)
-        if (method === "POST") {
-          const newItem = await readBody();
-          const data = await readDb(filename);
-          
-          const index = data.findIndex((item: any) => item.id === newItem.id);
-          if (index >= 0) {
-             data[index] = newItem; // Update
-          } else {
-             data.push(newItem); // Create
-          }
-          
-          await writeDb(filename, data);
-          return sendJson(200, { success: true });
-        }
-
-        // 3. DELETE
-        if (method === "DELETE") {
-          const body = await readBody();
-          const id = body.id;
-          let data = await readDb(filename);
-          data = data.filter((item: any) => item.id !== id);
-          await writeDb(filename, data);
-          return sendJson(200, { success: true });
-        }
-      }
-
     } catch (err) {
-      console.error("API Error:", err);
-      return sendJson(500, { error: String(err) });
+      console.error("[Dev] save-image error", err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: String(err) }));
+      return;
     }
 
     next();
@@ -181,9 +119,10 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       {
-        name: "vite:custom-api-middleware",
+        name: "vite:db-middleware",
         configureServer(server) {
-          server.middlewares.use(createApiMiddleware());
+          server.middlewares.use(jsonDbMiddleware());
+          server.middlewares.use(createSaveImageMiddleware());
         },
       },
     ],
