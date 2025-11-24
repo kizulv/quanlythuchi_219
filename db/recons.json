@@ -1,0 +1,14 @@
+[
+  {
+    "id": "recon_11_2025",
+    "month": 11,
+    "year": 2025,
+    "cashStorage": 0,
+    "cashWallet": 0,
+    "bankAccount": 0,
+    "existingMoney": 0,
+    "paidItems": [],
+    "debtItems": [],
+    "lastUpdated": "2025-11-24T07:43:59.554Z"
+  }
+]
