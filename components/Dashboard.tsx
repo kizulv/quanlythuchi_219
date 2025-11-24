@@ -9,23 +9,22 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  LayoutDashboard, 
   FileText, 
   Settings,
   Bus,
   Wallet,
-  History,
   PieChart,
   Database,
-  Calculator,
   Edit,
   Menu,
-  Users,
   X,
   PanelRightClose,
-  PanelRightOpen
+  PanelRightOpen,
+  CheckCircle,
+  TrendingUp,
+  Clock
 } from 'lucide-react';
-import { Transaction, TransactionStatus, PaymentCycle } from '../types';
+import { Transaction, TransactionStatus, PaymentCycle, Bus as BusType } from '../types';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { StatsCard } from './StatsCard';
@@ -52,7 +51,12 @@ export const Dashboard: React.FC = () => {
   const [cycles, setCycles] = useState<PaymentCycle[]>([]);
   
   // All Time Stats State
-  const [allTimeStats, setAllTimeStats] = useState({ total: 0, split: 0 });
+  const [globalStats, setGlobalStats] = useState({
+    totalAll: 0,
+    shareAll: 0,
+    totalYear: 0,
+    shareYear: 0
+  });
   
   // Open Balance State (Specifically for Reconciliation)
   const [openBalance, setOpenBalance] = useState(0);
@@ -148,15 +152,62 @@ export const Dashboard: React.FC = () => {
   // Calculate Global All-Time Stats
   useEffect(() => {
     const fetchGlobalStats = async () => {
-       const all = await db.getAll();
-       const total = all.reduce((sum, t) => sum + t.remainingBalance, 0);
-       setAllTimeStats({
-         total,
-         split: total / 4
+       const allTrans = await db.getAll();
+       const buses = await db.getBuses();
+       
+       let totalAll = 0;
+       let shareAll = 0;
+       let totalYear = 0;
+       let shareYear = 0;
+
+       const currentYear = new Date().getFullYear();
+
+       allTrans.forEach(t => {
+           // 1. Calculate Base Total
+           totalAll += t.remainingBalance;
+
+           // 2. Calculate Share Logic
+           let shareAmount = 0;
+           const busId = t.breakdown?.busId;
+           const bus = buses.find(b => b.licensePlate === busId);
+
+           if (bus && bus.isShareholding) {
+              // Shareholding Bus: Calculate percentage based on Owner + Held shares
+              let totalPercent = bus.sharePercentage;
+              if (bus.shareholders) {
+                 totalPercent += bus.shareholders.reduce((sum, s) => sum + s.percentage, 0);
+              }
+              shareAmount = (t.remainingBalance * totalPercent) / 100;
+           } else {
+              // Non-shareholding Bus: Assume 100% ownership of the remaining balance
+              shareAmount = t.remainingBalance;
+           }
+           shareAll += shareAmount;
+
+           // 3. Year Filter
+           const parts = t.date.split('/');
+           if (parts.length === 3) {
+              const year = parseInt(parts[2]);
+              if (year === currentYear) {
+                 totalYear += t.remainingBalance;
+                 shareYear += shareAmount;
+              }
+           }
+       });
+
+       setGlobalStats({
+         totalAll,
+         shareAll,
+         totalYear,
+         shareYear
        });
     };
-    fetchGlobalStats();
-  }, [transactions]); 
+    
+    // Refresh stats when transactions or view changes
+    if (currentView === 'ledger') {
+        fetchGlobalStats();
+    }
+  }, [transactions, currentView]); 
 
   const isLatestCycle = useMemo(() => {
      if (!selectedCycleId) return false;
@@ -251,7 +302,7 @@ export const Dashboard: React.FC = () => {
   const diffTotal = isSearching ? 0 : stats.totalRemaining - prevStats.totalRemaining;
   const diffSplit = isSearching ? 0 : stats.splitByFour - prevStats.splitByFour;
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(Math.round(val));
 
   const handleOpenDetail = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
@@ -374,6 +425,26 @@ export const Dashboard: React.FC = () => {
      setCurrentView('ledger');
      setSelectedCycleId(cycleId);
   };
+
+  // Reusable Component for Dark Summary Cards
+  const DarkStatsCard = ({ title, value, icon: Icon, colorClass, iconBgClass }: any) => (
+    <div className={`relative overflow-hidden rounded-2xl p-6 transition-transform hover:scale-[1.01] duration-300 ${colorClass} text-white shadow-lg`}>
+        <div className="absolute right-[-20px] top-[-20px] opacity-[0.05] pointer-events-none rotate-12">
+            <Icon size={120} />
+        </div>
+        <div className="relative z-10 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium text-white/80">{title}</span>
+                <div className={`p-2.5 rounded-xl border border-white/10 ${iconBgClass}`}>
+                    <Icon size={20} className="text-white" />
+                </div>
+            </div>
+            <div>
+                <div className="text-2xl md:text-3xl font-bold tracking-tight">{formatCurrency(value)}</div>
+            </div>
+        </div>
+    </div>
+  );
 
   return (
     // Changed min-h-screen to h-[100dvh] and added overflow-hidden to parent
@@ -789,21 +860,47 @@ export const Dashboard: React.FC = () => {
                 <Database size={20} className="text-slate-500"/>
                 Thống kê tổng hợp (Toàn bộ dữ liệu)
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                <StatsCard 
-                  title="Tổng dư còn lại (Tất cả)" 
-                  value={allTimeStats.total} 
-                  diff={0} 
-                  icon={Wallet}
-                  variant="gray"
-                />
-                <StatsCard 
-                  title="Tổng chia 4 (Tất cả)"
-                  value={allTimeStats.split} 
-                  diff={0}
-                  icon={Calculator}
-                  variant="gray"
-                />
+              
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Card 1: Toàn bộ - Tổng dư */}
+                  <DarkStatsCard 
+                    title="Toàn bộ" 
+                    value={globalStats.totalAll} 
+                    icon={CheckCircle} 
+                    colorClass="bg-[#044736]" // Dark Green
+                    iconBgClass="bg-white/10"
+                    iconColor="text-emerald-400"
+                  />
+
+                  {/* Card 2: Toàn bộ - Cổ phần */}
+                  <DarkStatsCard 
+                    title="Tổng cổ phần" 
+                    value={globalStats.shareAll} 
+                    icon={PieChart} 
+                    colorClass="bg-[#131b2e]" // Dark Navy
+                    iconBgClass="bg-white/10"
+                    iconColor="text-blue-400"
+                  />
+
+                  {/* Card 3: Năm nay - Tổng dư */}
+                  <DarkStatsCard 
+                    title="Năm nay" 
+                    value={globalStats.totalYear} 
+                    icon={Calendar} 
+                    colorClass="bg-[#181830]" // Dark Purple
+                    iconBgClass="bg-white/10"
+                    iconColor="text-purple-400"
+                  />
+
+                  {/* Card 4: Năm nay - Cổ phần */}
+                  <DarkStatsCard 
+                    title="Cổ phần năm nay" 
+                    value={globalStats.shareYear} 
+                    icon={TrendingUp} 
+                    colorClass="bg-[#12151e]" // Dark Gray/Black
+                    iconBgClass="bg-white/10"
+                    iconColor="text-slate-400"
+                  />
               </div>
             </div>
           </div>
@@ -844,6 +941,32 @@ export const Dashboard: React.FC = () => {
         year={new Date().getFullYear()}
         variant="modal"
       />
+    </div>
+  );
+};
+
+// Internal Component for the new dark cards
+const DarkStatsCard = ({ title, value, icon: Icon, colorClass, iconBgClass, iconColor }: any) => {
+  const formattedValue = new Intl.NumberFormat('vi-VN').format(Math.round(value));
+  
+  return (
+    <div className={`relative overflow-hidden rounded-2xl p-5 md:p-6 transition-transform hover:scale-[1.01] duration-300 ${colorClass} text-white shadow-lg border border-white/5`}>
+        {/* Background Icon Decoration */}
+        <div className="absolute right-[-20px] top-[-20px] opacity-[0.05] pointer-events-none rotate-12">
+            <Icon size={140} />
+        </div>
+        
+        <div className="relative z-10 flex flex-col justify-between h-full min-h-[100px]">
+            <div className="flex items-start justify-between mb-2">
+                <span className="text-sm font-medium text-white/80">{title}</span>
+                <div className={`p-2 rounded-xl border border-white/10 backdrop-blur-sm ${iconBgClass}`}>
+                    <Icon size={20} className={iconColor || 'text-white'} />
+                </div>
+            </div>
+            <div>
+                <div className="text-2xl md:text-3xl font-bold tracking-tight">{formattedValue}</div>
+            </div>
+        </div>
     </div>
   );
 };
