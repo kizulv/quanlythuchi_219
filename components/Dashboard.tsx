@@ -44,7 +44,7 @@ export const Dashboard: React.FC = () => {
   // Navigation State
   const [currentView, setCurrentView] = useState<ViewState>('ledger');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile Left Sidebar
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false); // Desktop Right Sidebar
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true); // Mobile/Desktop Right Sidebar Toggle
 
   // View State (Ledger)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -91,11 +91,10 @@ export const Dashboard: React.FC = () => {
       setCycles(loadedCycles);
     };
     loadMetadata();
-  }, [isPaymentModalOpen, currentView]); // Reload cycles when payment modal closes or view changes
+  }, [isPaymentModalOpen, currentView]); 
 
   // Transaction Data Load
   const fetchTransactions = async () => {
-    // Only fetch if we are in Ledger view or need background data
     if (currentView !== 'ledger') return;
 
     setIsLoading(true);
@@ -105,21 +104,17 @@ export const Dashboard: React.FC = () => {
         setTransactions(searchResults.sort(sortFn));
         setPrevTransactions([]);
       } else {
-        // Fetch Main Data based on Selection
         const data = await db.getTransactionsByCycle(selectedCycleId || undefined);
         setTransactions(data.sort(sortFn));
 
-        // Fetch Previous Data for comparison (Logic: find previous cycle in list)
         let prevData: Transaction[] = [];
         if (selectedCycleId) {
-           // Find current index
            const idx = cycles.findIndex(c => c.id === selectedCycleId);
            if (idx !== -1 && idx < cycles.length - 1) {
               const prevCycleId = cycles[idx + 1].id;
               prevData = await db.getTransactionsByCycle(prevCycleId);
            }
         } else {
-           // If current (open), compare with the most recent closed cycle
            if (cycles.length > 0) {
               prevData = await db.getTransactionsByCycle(cycles[0].id);
            }
@@ -148,7 +143,7 @@ export const Dashboard: React.FC = () => {
         setOpenBalance(total);
      };
      calcOpenBalance();
-  }, [transactions, isReconciliationModalOpen, isRightSidebarOpen]);
+  }, [transactions, isReconciliationModalOpen]);
 
   // Calculate Global All-Time Stats
   useEffect(() => {
@@ -163,7 +158,6 @@ export const Dashboard: React.FC = () => {
     fetchGlobalStats();
   }, [transactions]); 
 
-  // Identify if we are viewing the latest cycle (to allow editing)
   const isLatestCycle = useMemo(() => {
      if (!selectedCycleId) return false;
      if (cycles.length === 0) return false;
@@ -172,14 +166,12 @@ export const Dashboard: React.FC = () => {
 
   // --- CYCLE NAVIGATION LOGIC ---
   const currentCycleIndex = useMemo(() => {
-    if (!selectedCycleId) return -1; // -1 represents "Current/Open"
+    if (!selectedCycleId) return -1; 
     return cycles.findIndex(c => c.id === selectedCycleId);
   }, [selectedCycleId, cycles]);
 
   const handlePrevCycle = () => {
-    // Moving further back in time (increasing index)
     if (currentCycleIndex === -1) {
-       // From Current -> Newest Closed
        if (cycles.length > 0) setSelectedCycleId(cycles[0].id);
     } else if (currentCycleIndex < cycles.length - 1) {
        setSelectedCycleId(cycles[currentCycleIndex + 1].id);
@@ -187,9 +179,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleNextCycle = () => {
-    // Moving forward in time (decreasing index)
     if (currentCycleIndex === 0) {
-       // From Newest Closed -> Current
        setSelectedCycleId(null);
     } else if (currentCycleIndex > 0) {
        setSelectedCycleId(cycles[currentCycleIndex - 1].id);
@@ -199,14 +189,12 @@ export const Dashboard: React.FC = () => {
   const isPrevDisabled = cycles.length === 0 || currentCycleIndex === cycles.length - 1;
 
   const handleOpenPaymentModal = async () => {
-    // Check constraint: Can only edit Latest Cycle if a cycle is selected
     if (selectedCycleId && !isLatestCycle) {
       toast.info("Chỉ có thể chỉnh sửa kỳ thanh toán gần nhất.");
       return;
     }
 
     if (selectedCycleId && isLatestCycle) {
-       // EDIT MODE: Need to fetch Open Items and combine with Current Cycle Items
        const currentCycleItems = await db.getTransactionsByCycle(selectedCycleId);
        const openItems = await db.getTransactionsByCycle(undefined);
        const combinedData = [...currentCycleItems, ...openItems].sort(sortFn);
@@ -215,10 +203,7 @@ export const Dashboard: React.FC = () => {
        setEditingCycle(cycles.find(c => c.id === selectedCycleId));
        setIsPaymentModalOpen(true);
     } else {
-       // CREATE MODE: Just use current OPEN transactions
-       // Need to fetch fresh "open" items to be safe, instead of relying on state if we came from PaymentManager
        const openItems = await db.getTransactionsByCycle(undefined);
-
        if (openItems.length === 0) {
           toast.error("Không có dữ liệu chưa thanh toán để tạo.");
           return;
@@ -232,29 +217,20 @@ export const Dashboard: React.FC = () => {
   const handleConfirmPayment = async (selectedIds: string[], month: number, year: number, totalAmount: number, note: string) => {
     try {
       if (editingCycle) {
-        // Update existing cycle
         await db.updatePaymentCycle(editingCycle.id, selectedIds, totalAmount, note);
         toast.success(`Đã cập nhật thanh toán kỳ ${month}/${year}!`);
-        // Refresh data
         await fetchTransactions();
       } else {
-        // Create new cycle
         await db.createPaymentCycle(selectedIds, month, year, totalAmount, note);
         toast.success(`Đã tạo thanh toán cho kỳ ${month}/${year}!`);
-        // Switch to the newly created cycle (if in Ledger view)
         const newCycleId = `${year}.${month.toString().padStart(2, '0')}`;
-        // If we are in PaymentManager, we stay there, or we can switch to ledger. 
-        // Let's assume user wants to see what they just created.
         if (currentView === 'ledger') {
            setSelectedCycleId(newCycleId);
         }
       }
       setIsPaymentModalOpen(false);
-      
-      // Reload metadata (cycles list) in case we just created one
       const loadedCycles = await db.getPaymentCycles();
       setCycles(loadedCycles);
-
     } catch (error) {
       console.error(error);
       toast.error("Có lỗi xảy ra khi xử lý thanh toán.");
@@ -277,14 +253,12 @@ export const Dashboard: React.FC = () => {
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
 
-  // Handlers
   const handleOpenDetail = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
 
   const handleAddTransaction = () => {
-    // Cannot add to historical cycle
     if (selectedCycleId) {
       toast.warning("Vui lòng chuyển về 'Kỳ hiện tại' để thêm mới.");
       setSelectedCycleId(null);
@@ -353,19 +327,14 @@ export const Dashboard: React.FC = () => {
     exportToExcel(transactions, label);
   };
 
-  // Logic to check for duplicate transaction dates
   const handleCheckExists = (dateStr: string) => {
-     // Checks within the currently loaded transactions (Usually Open Items if creating new)
      return transactions.find(t => t.date === dateStr);
   };
 
-  // Logic to switch to Edit mode when duplicate found
   const handleSwitchToEdit = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
-    // Modal is already open, state update will re-render it with new data
   };
 
-  // Label Logic
   const getCurrentViewLabel = () => {
     if (isSearching) return `Kết quả tìm kiếm: "${searchTerm}"`;
     if (!selectedCycleId) {
@@ -378,14 +347,12 @@ export const Dashboard: React.FC = () => {
     return `${formatCurrency(c.totalAmount)} k`;
   };
 
-  // Determine payment date for the selected transaction (if paid)
   const getSelectedTransactionPaymentDate = () => {
     if (!selectedTransaction?.paymentMonth) return undefined;
     const cycle = cycles.find(c => c.id === selectedTransaction.paymentMonth);
     return cycle?.createdDate;
   };
 
-  // --- Sidebar Logic ---
   const handleMenuClick = (view: ViewState) => {
     setCurrentView(view);
     if (window.innerWidth < 768) {
@@ -393,11 +360,10 @@ export const Dashboard: React.FC = () => {
     }
   };
   
-  // Logic for "Đối soát" menu item
   const handleReconClick = () => {
-    // Check if Desktop (>768px)
     if (window.innerWidth >= 768) {
-      setIsRightSidebarOpen(!isRightSidebarOpen);
+       // Desktop: Toggle sidebar instead of modal
+       setIsRightSidebarOpen(!isRightSidebarOpen);
     } else {
       setIsReconciliationModalOpen(true);
       setIsSidebarOpen(false);
@@ -425,7 +391,6 @@ export const Dashboard: React.FC = () => {
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand/Logo Area */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 bg-white">
           <div className="flex items-center">
              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center mr-3 shadow-md shadow-slate-900/20">
@@ -433,8 +398,6 @@ export const Dashboard: React.FC = () => {
              </div>
              <span className="font-bold text-lg text-slate-900 tracking-tight">BusManager</span>
           </div>
-          
-          {/* Close Button (Mobile Only) */}
           <button 
              onClick={() => setIsSidebarOpen(false)}
              className="md:hidden p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors"
@@ -443,11 +406,9 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mt-2">Quản lý</div>
             
-            {/* Sổ thu chi */}
             <div 
               onClick={() => handleMenuClick('ledger')}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
@@ -460,28 +421,19 @@ export const Dashboard: React.FC = () => {
                <span className={`text-sm ${currentView === 'ledger' ? 'font-bold' : 'font-medium'}`}>Sổ thu chi</span>
             </div>
 
-            {/* Lịch xe chạy */}
-            <div 
-              className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
-            >
+            <div className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all">
                <Calendar size={20} />
                <span className="font-medium text-sm">Lịch xe chạy</span>
             </div>
             
-            {/* Đối soát */}
             <div 
                onClick={handleReconClick}
-               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
-                  isRightSidebarOpen && window.innerWidth >= 768
-                  ? 'bg-slate-100 text-slate-900 border-slate-200 shadow-sm' 
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent'
-               }`}
+               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent md:border-slate-200 ${isRightSidebarOpen ? 'md:bg-slate-50 md:text-slate-900 md:font-bold' : 'md:font-medium'}`}
             >
-               <Wallet size={20} className={isRightSidebarOpen && window.innerWidth >= 768 ? "text-slate-900" : ""} />
-               <span className={`text-sm ${isRightSidebarOpen && window.innerWidth >= 768 ? 'font-bold' : 'font-medium'}`}>Đối soát</span>
+               <Wallet size={20} className={isRightSidebarOpen ? "md:text-slate-900" : ""}/>
+               <span className="font-medium text-sm">Đối soát</span>
             </div>
 
-            {/* Quản lý thanh toán */}
             <div 
               onClick={() => handleMenuClick('payments')}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
@@ -496,7 +448,6 @@ export const Dashboard: React.FC = () => {
 
             <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6">Hệ thống</div>
 
-            {/* Danh sách xe */}
             <div 
               onClick={() => handleMenuClick('buses')}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
@@ -509,16 +460,12 @@ export const Dashboard: React.FC = () => {
                <span className={`text-sm ${currentView === 'buses' ? 'font-bold' : 'font-medium'}`}>Danh sách xe</span>
             </div>
 
-            {/* Cài đặt */}
-            <div 
-              className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
-            >
+            <div className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all">
                <Settings size={20} />
                <span className="font-medium text-sm">Cài đặt</span>
             </div>
         </nav>
 
-        {/* User Profile Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50/50">
             <div className="flex items-center gap-3">
                <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs shadow-sm">
@@ -532,15 +479,15 @@ export const Dashboard: React.FC = () => {
         </div>
       </aside>
 
-      {/* RIGHT SIDEBAR (Desktop Only) */}
+      {/* RIGHT SIDEBAR (Desktop Only - Toggleable) */}
       <aside
-        className={`fixed right-0 top-0 h-full w-[400px] bg-white border-l border-slate-200 z-30 transition-transform duration-300 hidden md:block ${
-          isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed right-0 top-0 h-full w-[400px] bg-white z-30 border-l hidden md:block transition-transform duration-300 ${
+           isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <ReconciliationSheet 
-           isOpen={isRightSidebarOpen} // Used for data loading trigger
-           onClose={() => setIsRightSidebarOpen(false)}
+           isOpen={true}
+           onClose={() => setIsRightSidebarOpen(false)} 
            currentBalance={openBalance}
            monthLabel="Kỳ hiện tại (Chưa thanh toán)"
            month={new Date().getMonth() + 1}
@@ -549,8 +496,12 @@ export const Dashboard: React.FC = () => {
         />
       </aside>
 
-      {/* Main Content - Dynamic Margins */}
-      <main className={`flex-1 w-full h-full overflow-y-auto transition-all duration-300 md:ml-64 ${isRightSidebarOpen ? 'md:mr-[400px]' : ''}`}>
+      {/* Main Content - Adapts margin based on sidebar state */}
+      <main 
+         className={`flex-1 w-full h-full overflow-y-auto transition-all duration-300 md:ml-64 ${
+            isRightSidebarOpen ? 'md:mr-[400px]' : 'md:mr-0'
+         }`}
+      >
         
         {/* VIEW SWITCHING */}
         {currentView === 'payments' ? (
@@ -559,7 +510,6 @@ export const Dashboard: React.FC = () => {
                  onNavigateToLedger={navigateToLedger} 
                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                  onOpenCreateModal={() => {
-                     // Switch to Create Mode parameters
                      setSelectedCycleId(null);
                      setEditingCycle(undefined);
                      handleOpenPaymentModal();
@@ -592,18 +542,15 @@ export const Dashboard: React.FC = () => {
               </div>
               
               <div className="flex w-full md:w-auto gap-3 items-center md:self-auto">
-                {/* Right Sidebar Toggle (Desktop) */}
-                <button
-                   onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                   className={`hidden md:flex p-2 items-center gap-2 rounded-lg border transition-all text-sm font-medium ${
-                      isRightSidebarOpen ? 'bg-slate-100 text-slate-900 border-slate-300' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                   }`}
-                   title={isRightSidebarOpen ? "Ẩn đối soát" : "Hiện đối soát"}
+                {/* Desktop Right Sidebar Toggle */}
+                <button 
+                  onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                  className="hidden md:flex items-center justify-center p-2.5 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                  title={isRightSidebarOpen ? "Ẩn đối soát" : "Hiện đối soát"}
                 >
-                   {isRightSidebarOpen ? <PanelRightClose size={18}/> : <PanelRightOpen size={18}/>}
+                   {isRightSidebarOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
                 </button>
 
-                {/* SHOW BUTTON IF: Current Cycle (Create) OR Latest Closed Cycle (Edit) */}
                 {(!selectedCycleId || isLatestCycle) && (
                   <Button 
                     variant="primary" 
@@ -652,7 +599,6 @@ export const Dashboard: React.FC = () => {
               <div className="grid grid-cols-2 md:flex items-center gap-3 w-full md:w-auto">
                 {/* CYCLE PICKER WITH NAV */}
                 <div className="col-span-2 md:col-span-1 flex items-center gap-2">
-                  {/* Prev Button */}
                   <button 
                       onClick={handlePrevCycle}
                       disabled={isPrevDisabled}
@@ -679,8 +625,6 @@ export const Dashboard: React.FC = () => {
                         <div className="fixed inset-0 z-20" onClick={() => setIsCyclePickerOpen(false)} />
                         <div className="absolute top-full mt-1 right-0 w-full md:w-[320px] bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-30 animate-in fade-in zoom-in-95 duration-200">
                           <div className="px-3 py-2 text-xs font-semibold text-slate-500">Chọn kỳ dữ liệu</div>
-                          
-                          {/* Current Cycle Option */}
                           <button
                             onClick={() => { setSelectedCycleId(null); setIsCyclePickerOpen(false); }}
                             className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-50 transition-colors ${!selectedCycleId ? 'bg-blue-50 text-blue-700' : 'text-slate-700'}`}
@@ -691,10 +635,7 @@ export const Dashboard: React.FC = () => {
                             </div>
                             {!selectedCycleId && <div className="w-2 h-2 rounded-full bg-blue-600"></div>}
                           </button>
-                          
                           <div className="h-px bg-slate-100 my-1"></div>
-                          
-                          {/* Historical Cycles */}
                           <div className="max-h-[300px] overflow-y-auto">
                             {cycles.map((cycle) => (
                               <button
@@ -723,7 +664,6 @@ export const Dashboard: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Next Button - Dimmed if at Current */}
                   <button 
                       onClick={handleNextCycle}
                       disabled={!selectedCycleId}
@@ -758,20 +698,19 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Table Container - Responsive Scrolling */}
+            {/* Table Container - Removed Revenue and SharedExpense Columns */}
             <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
               <div className="overflow-x-auto flex-1 w-full custom-scrollbar">
-                <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1200px]">
+                <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1000px]">
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
                     <tr>
                       <th className="h-12 px-2 align-middle w-[60px] text-center">2 Xe</th>
                       <th className="h-12 px-2 align-middle w-[100px] text-center">Ngày</th>
-                      <th className="h-12 px-2 align-middle text-right w-[100px]">Tổng thu</th>
-                      <th className="h-12 px-2 align-middle text-right w-[100px]">Chi chung</th>
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Tổng dư</th>
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư chia</th>
-                      <th className="h-12 px-2 align-middle text-right w-[100px]">Chi riêng</th>
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[100px]">Dư còn lại</th>
+                      {/* REMOVED: Tổng thu & Chi chung */}
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px]">Tổng dư</th>
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px]">Dư chia</th>
+                      <th className="h-12 px-2 align-middle text-right w-[120px]">Chi riêng</th>
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px]">Dư còn lại</th>
                       <th className="h-12 px-2 align-middle text-center w-[80px]"></th>
                       <th className="h-12 px-4 align-middle">Ghi chú</th>
                       <th className="h-12 px-2 align-middle text-right w-[140px]">Trạng thái</th>
@@ -780,11 +719,11 @@ export const Dashboard: React.FC = () => {
                   <tbody className="divide-y divide-slate-100">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={11} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
+                        <td colSpan={9} className="p-6 text-center text-muted-foreground">Đang tải dữ liệu...</td>
                       </tr>
                     ) : transactions.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="p-10 text-center text-muted-foreground">
+                        <td colSpan={9} className="p-10 text-center text-muted-foreground">
                             {isSearching 
                               ? `Không tìm thấy dữ liệu nào cho "${searchTerm}"` 
                               : `Không có dữ liệu nào trong kỳ này.`}
@@ -804,8 +743,7 @@ export const Dashboard: React.FC = () => {
                           />
                         </td>
                         <td className="px-2 py-3 align-middle font-medium text-center text-slate-900">{t.date}</td>
-                        <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.revenue)}</td>
-                        <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.sharedExpense)}</td>
+                        {/* REMOVED: t.revenue & t.sharedExpense */}
                         <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.totalBalance)}</td>
                         <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">{formatCurrency(t.splitBalance)}</td>
                         <td className="px-2 py-3 align-middle text-right text-slate-600">{formatCurrency(t.privateExpense)}</td>
@@ -842,7 +780,6 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Global Stats - Replaces Charts */}
             <div className="mt-8">
               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Database size={20} className="text-slate-500"/>
@@ -883,7 +820,7 @@ export const Dashboard: React.FC = () => {
         />
       )}
 
-      {/* Payment Cycle Modal (Reused for Edit Mode inside Dashboard main view) */}
+      {/* Payment Cycle Modal */}
       <PaymentModal 
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
@@ -895,7 +832,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Reconciliation Sheet (Mobile Modal Mode) */}
       <ReconciliationSheet 
-        isOpen={isReconciliationModalOpen} // Only used on mobile
+        isOpen={isReconciliationModalOpen}
         onClose={() => setIsReconciliationModalOpen(false)}
         currentBalance={openBalance}
         monthLabel="Kỳ hiện tại (Chưa thanh toán)"

@@ -347,7 +347,8 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
   // Render logic based on variant
   if (variant === 'sidebar') {
      return (
-        <div className="flex flex-col h-full bg-white border-l border-slate-200 shadow-xl w-full">
+        // Changed: Removed shadow-xl and border-l, made full width and clean background
+        <div className="flex flex-col h-full bg-white w-full">
            {/* Sidebar Header */}
            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
                <div>
