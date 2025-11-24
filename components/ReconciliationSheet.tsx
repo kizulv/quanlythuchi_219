@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sheet } from './ui/Sheet';
-import { Save, Trash2, Plus, Archive, Wallet, Landmark, Banknote } from 'lucide-react';
+import { Save, Trash2, Plus, Archive, Wallet, Landmark, Banknote, X } from 'lucide-react';
 import { Button } from './ui/Button';
 import { SmartInput } from './ui/SmartInput';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ interface ReconciliationSheetProps {
   monthLabel: string;
   month: number;
   year: number;
+  variant?: 'modal' | 'sidebar'; // New prop
 }
 
 export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
@@ -23,7 +24,8 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
   currentBalance,
   monthLabel,
   month,
-  year
+  year,
+  variant = 'modal'
 }) => {
   // 1. Assets State
   const [cashStorage, setCashStorage] = useState(0); // Kho
@@ -43,12 +45,12 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
   // Constants & Calculations
   const busSurplusTarget = currentBalance / 2; // Dư xe phải có
 
-  // Fetch data on open
+  // Fetch data on open or when variant/month changes
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || variant === 'sidebar') {
       loadData();
     }
-  }, [isOpen, month, year]);
+  }, [isOpen, month, year, variant]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -127,7 +129,7 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
 
       await db.saveReconciliation(report);
       toast.success("Đã lưu phiếu đối soát thành công!");
-      onClose();
+      if (variant === 'modal') onClose();
     } catch (error) {
       console.error(error);
       toast.error("Lỗi khi lưu dữ liệu");
@@ -164,40 +166,9 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
       statusLabel = 'Thiếu tiền';
   }
 
-  return (
-    <Sheet 
-      isOpen={isOpen} 
-      onClose={onClose} 
-      title={`Đối soát tiền mặt - ${monthLabel}`}
-      width="w-full md:max-w-lg"
-      footer={
-        <div className="space-y-3">
-          {/* Result Float Section */}
-          <div className={`flex items-center justify-between px-4 py-3 rounded-lg border shadow-sm transition-all duration-300 ${resultBg} ${resultBorder}`}>
-             <div className="flex flex-col">
-                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Kết quả chênh lệch</span>
-                 <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${resultText}`}>{statusLabel}</span>
-                 </div>
-             </div>
-             <span className={`text-2xl font-bold tracking-tight ${resultText}`}>
-                {discrepancy > 0 ? '+' : ''}{formatNumber(discrepancy)}
-             </span>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose} className="h-11 flex-1">Đóng</Button>
-            <Button variant="primary" onClick={handleSaveReport} className="h-11 flex-1 font-bold shadow-md">
-              <Save size={16} className="mr-2" />
-              Lưu kết quả
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      <div className="space-y-5 pb-4">
-        
+  // Content Renderer
+  const renderContent = () => (
+    <div className="space-y-5 pb-4">
         {/* Header Info */}
         <div className="flex items-center justify-between -mt-2 mb-2">
            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">
@@ -342,7 +313,78 @@ export const ReconciliationSheet: React.FC<ReconciliationSheetProps> = ({
               </button>
            </div>
         </div>
+    </div>
+  );
+
+  const renderFooter = () => (
+    <div className="space-y-3">
+      {/* Result Float Section */}
+      <div className={`flex items-center justify-between px-4 py-3 rounded-lg border shadow-sm transition-all duration-300 ${resultBg} ${resultBorder}`}>
+          <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Kết quả chênh lệch</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-bold ${resultText}`}>{statusLabel}</span>
+              </div>
+          </div>
+          <span className={`text-2xl font-bold tracking-tight ${resultText}`}>
+            {discrepancy > 0 ? '+' : ''}{formatNumber(discrepancy)}
+          </span>
       </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        {variant === 'modal' && (
+           <Button variant="outline" onClick={onClose} className="h-11 flex-1">Đóng</Button>
+        )}
+        <Button variant="primary" onClick={handleSaveReport} className="h-11 flex-1 font-bold shadow-md">
+          <Save size={16} className="mr-2" />
+          Lưu kết quả
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Render logic based on variant
+  if (variant === 'sidebar') {
+     return (
+        <div className="flex flex-col h-full bg-white border-l border-slate-200 shadow-xl w-full">
+           {/* Sidebar Header */}
+           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+               <div>
+                  <h2 className="text-lg font-bold text-slate-900">Đối soát tiền mặt</h2>
+                  <p className="text-xs text-slate-500">{monthLabel}</p>
+               </div>
+               <button 
+                  onClick={onClose} // Acts as toggle hide
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+           </div>
+           
+           {/* Sidebar Content */}
+           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+               {renderContent()}
+           </div>
+
+           {/* Sidebar Footer */}
+           <div className="p-4 border-t border-slate-100 bg-white shrink-0 z-10">
+               {renderFooter()}
+           </div>
+        </div>
+     );
+  }
+
+  // Default: Modal (Sheet)
+  return (
+    <Sheet 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={`Đối soát tiền mặt - ${monthLabel}`}
+      width="w-full md:max-w-lg"
+      footer={renderFooter()}
+    >
+      {renderContent()}
     </Sheet>
   );
 };

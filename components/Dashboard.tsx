@@ -21,7 +21,9 @@ import {
   Edit,
   Menu,
   Users,
-  X 
+  X,
+  PanelRightClose,
+  PanelRightOpen
 } from 'lucide-react';
 import { Transaction, TransactionStatus, PaymentCycle } from '../types';
 import { Button } from './ui/Button';
@@ -41,7 +43,8 @@ type ViewState = 'ledger' | 'payments' | 'buses';
 export const Dashboard: React.FC = () => {
   // Navigation State
   const [currentView, setCurrentView] = useState<ViewState>('ledger');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile Left Sidebar
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false); // Desktop Right Sidebar
 
   // View State (Ledger)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -67,7 +70,7 @@ export const Dashboard: React.FC = () => {
   // Modal State
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isReconciliationOpen, setIsReconciliationOpen] = useState(false);
+  const [isReconciliationModalOpen, setIsReconciliationModalOpen] = useState(false); // Mobile Modal
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   
   // Payment Modal specific state (for edit mode)
@@ -145,7 +148,7 @@ export const Dashboard: React.FC = () => {
         setOpenBalance(total);
      };
      calcOpenBalance();
-  }, [transactions, isReconciliationOpen]);
+  }, [transactions, isReconciliationModalOpen, isRightSidebarOpen]);
 
   // Calculate Global All-Time Stats
   useEffect(() => {
@@ -350,6 +353,18 @@ export const Dashboard: React.FC = () => {
     exportToExcel(transactions, label);
   };
 
+  // Logic to check for duplicate transaction dates
+  const handleCheckExists = (dateStr: string) => {
+     // Checks within the currently loaded transactions (Usually Open Items if creating new)
+     return transactions.find(t => t.date === dateStr);
+  };
+
+  // Logic to switch to Edit mode when duplicate found
+  const handleSwitchToEdit = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    // Modal is already open, state update will re-render it with new data
+  };
+
   // Label Logic
   const getCurrentViewLabel = () => {
     if (isSearching) return `Kết quả tìm kiếm: "${searchTerm}"`;
@@ -377,6 +392,17 @@ export const Dashboard: React.FC = () => {
       setIsSidebarOpen(false);
     }
   };
+  
+  // Logic for "Đối soát" menu item
+  const handleReconClick = () => {
+    // Check if Desktop (>768px)
+    if (window.innerWidth >= 768) {
+      setIsRightSidebarOpen(!isRightSidebarOpen);
+    } else {
+      setIsReconciliationModalOpen(true);
+      setIsSidebarOpen(false);
+    }
+  };
 
   const navigateToLedger = (cycleId: string) => {
      setCurrentView('ledger');
@@ -384,8 +410,8 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex">
-      {/* Mobile Backdrop Overlay */}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex overflow-hidden">
+      {/* Mobile Backdrop Overlay (Left Sidebar) */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-30 md:hidden animate-in fade-in duration-200"
@@ -393,9 +419,9 @@ export const Dashboard: React.FC = () => {
         />
       )}
 
-      {/* Sidebar - Toggleable with Text */}
+      {/* LEFT SIDEBAR - Persistent on Desktop, Toggleable on Mobile */}
       <aside 
-        className={`fixed h-full z-40 left-0 top-0 w-64 bg-white border-r flex flex-col transition-transform duration-300 shadow-xl md:shadow-sm ${
+        className={`fixed h-full z-40 left-0 top-0 w-64 bg-white border-r flex flex-col transition-transform duration-300 shadow-xl md:shadow-sm md:translate-x-0 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -444,14 +470,15 @@ export const Dashboard: React.FC = () => {
             
             {/* Đối soát */}
             <div 
-               onClick={() => {
-                   setIsReconciliationOpen(true);
-                   setIsSidebarOpen(false);
-               }}
-               className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg cursor-pointer transition-all"
+               onClick={handleReconClick}
+               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border ${
+                  isRightSidebarOpen && window.innerWidth >= 768
+                  ? 'bg-slate-100 text-slate-900 border-slate-200 shadow-sm' 
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent'
+               }`}
             >
-               <Wallet size={20} />
-               <span className="font-medium text-sm">Đối soát</span>
+               <Wallet size={20} className={isRightSidebarOpen && window.innerWidth >= 768 ? "text-slate-900" : ""} />
+               <span className={`text-sm ${isRightSidebarOpen && window.innerWidth >= 768 ? 'font-bold' : 'font-medium'}`}>Đối soát</span>
             </div>
 
             {/* Quản lý thanh toán */}
@@ -505,8 +532,25 @@ export const Dashboard: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Content - Adjusted Margin for wider sidebar */}
-      <main className={`flex-1 w-full transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : ''}`}>
+      {/* RIGHT SIDEBAR (Desktop Only) */}
+      <aside
+        className={`fixed right-0 top-0 h-full w-[400px] bg-white border-l border-slate-200 z-30 transition-transform duration-300 hidden md:block ${
+          isRightSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <ReconciliationSheet 
+           isOpen={isRightSidebarOpen} // Used for data loading trigger
+           onClose={() => setIsRightSidebarOpen(false)}
+           currentBalance={openBalance}
+           monthLabel="Kỳ hiện tại (Chưa thanh toán)"
+           month={new Date().getMonth() + 1}
+           year={new Date().getFullYear()}
+           variant="sidebar"
+        />
+      </aside>
+
+      {/* Main Content - Dynamic Margins */}
+      <main className={`flex-1 w-full h-full overflow-y-auto transition-all duration-300 md:ml-64 ${isRightSidebarOpen ? 'md:mr-[400px]' : ''}`}>
         
         {/* VIEW SWITCHING */}
         {currentView === 'payments' ? (
@@ -534,7 +578,7 @@ export const Dashboard: React.FC = () => {
               <div className="flex items-center space-x-3">
                   <button 
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shrink-0 transition-all focus:outline-none focus:ring-2 focus:ring-slate-100 shadow-sm"
+                    className="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shrink-0 transition-all focus:outline-none focus:ring-2 focus:ring-slate-100 shadow-sm md:hidden"
                   >
                     <Menu size={20} />
                   </button>
@@ -548,6 +592,17 @@ export const Dashboard: React.FC = () => {
               </div>
               
               <div className="flex w-full md:w-auto gap-3 items-center md:self-auto">
+                {/* Right Sidebar Toggle (Desktop) */}
+                <button
+                   onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                   className={`hidden md:flex p-2 items-center gap-2 rounded-lg border transition-all text-sm font-medium ${
+                      isRightSidebarOpen ? 'bg-slate-100 text-slate-900 border-slate-300' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                   }`}
+                   title={isRightSidebarOpen ? "Ẩn đối soát" : "Hiện đối soát"}
+                >
+                   {isRightSidebarOpen ? <PanelRightClose size={18}/> : <PanelRightOpen size={18}/>}
+                </button>
+
                 {/* SHOW BUTTON IF: Current Cycle (Create) OR Latest Closed Cycle (Edit) */}
                 {(!selectedCycleId || isLatestCycle) && (
                   <Button 
@@ -822,7 +877,8 @@ export const Dashboard: React.FC = () => {
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveTransaction}
           onDelete={handleDeleteTransaction}
-          onCheckExists={() => undefined} // Disable duplicate check for now
+          onCheckExists={handleCheckExists}
+          onSwitchToEdit={handleSwitchToEdit}
           paymentDate={getSelectedTransactionPaymentDate()}
         />
       )}
@@ -837,14 +893,15 @@ export const Dashboard: React.FC = () => {
         editingCycle={editingCycle}
       />
 
-      {/* Reconciliation Sheet */}
+      {/* Reconciliation Sheet (Mobile Modal Mode) */}
       <ReconciliationSheet 
-        isOpen={isReconciliationOpen} 
-        onClose={() => setIsReconciliationOpen(false)}
+        isOpen={isReconciliationModalOpen} // Only used on mobile
+        onClose={() => setIsReconciliationModalOpen(false)}
         currentBalance={openBalance}
         monthLabel="Kỳ hiện tại (Chưa thanh toán)"
         month={new Date().getMonth() + 1}
         year={new Date().getFullYear()}
+        variant="modal"
       />
     </div>
   );

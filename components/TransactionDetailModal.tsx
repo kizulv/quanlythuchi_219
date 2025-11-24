@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
   Lock,
+  Unlock,
   Calendar as CalendarIcon,
   CalendarDays,
   ChevronLeft,
@@ -97,9 +98,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
   // State for manual balance entry (when revenue and expenses are 0)
   const [customTotalBalance, setCustomTotalBalance] = useState(0);
-  
-  // NEW: State for Total Expense Input (Since Fixed Expense is now calculated)
-  const [totalExpenseInput, setTotalExpenseInput] = useState(0);
 
   // Track the auto-generated note part to prevent duplication
   const [initialAutoNote, setInitialAutoNote] = useState("");
@@ -113,6 +111,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
   // Simple Alert State (For Edit -> Block)
   const [showSimpleDuplicateAlert, setShowSimpleDuplicateAlert] = useState(false);
+  
+  // Empty Data Alert State
+  const [showEmptySaveAlert, setShowEmptySaveAlert] = useState(false);
   
   // Mobile Image Fullscreen View State
   const [isMobileImageViewerOpen, setIsMobileImageViewerOpen] = useState(false);
@@ -316,9 +317,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
       const totalRevenueCalc = currentBreakdown.revenueDown + currentBreakdown.revenueUp + (initRev.reduce((s, i) => s + i.amount, 0));
       const totalExpenseCalc = currentBreakdown.expenseFuel + currentBreakdown.expenseFixed + currentBreakdown.expensePolice + currentBreakdown.expenseRepair + (initExp.reduce((s, i) => s + i.amount, 0));
       
-      // Initialize Total Expense Input
-      setTotalExpenseInput(totalExpenseCalc);
-
       // If calculated revenue and expense are 0, but totalBalance exists, treat as manual entry
       if (totalRevenueCalc === 0 && totalExpenseCalc === 0 && transaction.totalBalance !== 0) {
           setCustomTotalBalance(transaction.totalBalance);
@@ -347,9 +345,13 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const totalRevenue =
     breakdown.revenueDown + breakdown.revenueUp + totalRevenueOther;
     
-  // EXPENSE: Top-down Logic
-  // Formula: Fixed Expense = Total Input - (Fuel + Police + Repair + Others)
-  const totalExpense = totalExpenseInput;
+  // EXPENSE: Bottom-up Logic (Calculated from all components including Fixed)
+  const totalExpense = 
+    breakdown.expenseFuel + 
+    breakdown.expenseFixed + 
+    breakdown.expensePolice + 
+    breakdown.expenseRepair + 
+    totalExpenseOther;
 
   // Determine if we are in "Manual Balance Mode"
   const isManualBalanceMode = totalRevenue === 0 && totalExpense === 0;
@@ -363,22 +365,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
 
   const remainingBalance = splitBalance - totalPrivateExpense;
 
-  // --- CORE LOGIC FOR FIXED EXPENSE CALCULATION ---
-  const updateBreakdownWithFixedCalc = (
-    newTotal: number, 
-    currentBd: TransactionBreakdown, 
-    currentOtherExp: OtherExpenseItem[]
-  ) => {
-    const otherSum = currentOtherExp.reduce((sum, item) => sum + item.amount, 0);
-    const subTotal = currentBd.expenseFuel + currentBd.expensePolice + currentBd.expenseRepair + otherSum;
-    const newFixed = newTotal - subTotal;
-    
-    setBreakdown({
-      ...currentBd,
-      expenseFixed: newFixed
-    });
-  };
-
   // Handle Revenue inputs (Standard)
   const handleRevenueChange = (
     field: keyof TransactionBreakdown,
@@ -387,19 +373,12 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     setBreakdown((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Handle Expense Component inputs (Recalculate Fixed Expense)
+  // Handle Expense Component inputs
   const handleExpenseComponentChange = (
     field: keyof TransactionBreakdown,
     value: number
   ) => {
-    const nextBreakdown = { ...breakdown, [field]: value };
-    updateBreakdownWithFixedCalc(totalExpenseInput, nextBreakdown, otherExpenses);
-  };
-
-  // Handle Total Expense Input Change
-  const handleTotalExpenseChange = (value: number) => {
-    setTotalExpenseInput(value);
-    updateBreakdownWithFixedCalc(value, breakdown, otherExpenses);
+    setBreakdown((prev) => ({ ...prev, [field]: value }));
   };
 
   // --- Dynamic Items Logic ---
@@ -415,23 +394,18 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     setOtherRevenues(otherRevenues.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
-  // Expense (Updates trigger Fixed Expense recalculation)
+  // Expense
   const addOtherExpenseItem = () => {
     const newItems = [...otherExpenses, { id: Date.now().toString(), description: '', amount: 0 }];
     setOtherExpenses(newItems);
-    updateBreakdownWithFixedCalc(totalExpenseInput, breakdown, newItems);
   };
   const removeOtherExpenseItem = (id: string) => {
     const newItems = otherExpenses.filter(item => item.id !== id);
     setOtherExpenses(newItems);
-    updateBreakdownWithFixedCalc(totalExpenseInput, breakdown, newItems);
   };
   const updateOtherExpenseItem = (id: string, field: keyof OtherExpenseItem, value: any) => {
     const newItems = otherExpenses.map(item => item.id === id ? { ...item, [field]: value } : item);
     setOtherExpenses(newItems);
-    if (field === 'amount') {
-        updateBreakdownWithFixedCalc(totalExpenseInput, breakdown, newItems);
-    }
   };
 
   // Private Expense
@@ -499,14 +473,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     setShowDeleteAlert(false);
   };
 
-  const handleSave = () => {
-    // VALIDATION: Check if any data is entered
-    if (totalRevenue === 0 && totalExpense === 0 && totalPrivateExpense === 0 && totalBalance === 0) {
-      toast.error("Vui lòng nhập dữ liệu thu chi trước khi lưu!");
-      return;
-    }
-
-    // CRITICAL: Check for duplicate date BEFORE saving
+  // Proceed with saving logic after validation (called directly or after alert confirmation)
+  const proceedWithSave = () => {
+     // CRITICAL: Check for duplicate date BEFORE saving
     if (onCheckExists) {
         const existing = onCheckExists(date);
         
@@ -525,7 +494,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         }
     }
 
-    // --- AUTO NOTE LOGIC FIX ---
+    // --- AUTO NOTE LOGIC ---
     
     // 1. Generate the NEW auto note string based on current dynamic items
     const newAutoNoteString = generateAutoDetails(otherRevenues, otherExpenses, privateExpenses, breakdown.isShared);
@@ -590,6 +559,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     };
     onSave(updated);
     toast.success("Đã lưu sổ thu chi thành công!");
+  };
+
+  const handleSave = () => {
+    // VALIDATION: Check if any data is entered
+    if (totalRevenue === 0 && totalExpense === 0 && totalPrivateExpense === 0 && totalBalance === 0) {
+      setShowEmptySaveAlert(true);
+      return;
+    }
+    proceedWithSave();
   };
 
   // Render Calendar Logic
@@ -685,8 +663,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         <div className="bg-white rounded-none md:rounded-xl shadow-2xl w-full h-[100dvh] md:h-[95vh] md:max-w-6xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           
           {/* Left Side: Image Viewer */}
-          {/* Mobile: Top Strip (h-48) or Full Screen Overlay */}
-          {/* Desktop: Full Height Left Panel */}
           <div className="w-full h-56 shrink-0 md:h-full md:w-6/12 bg-slate-900 relative flex-col group border-b md:border-b-0 md:border-r border-slate-800">
             {/* Watermark/Date Overlay */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-md px-4 py-1.5 md:px-6 md:py-2.5 rounded-full text-white shadow-2xl border border-white/20 flex items-center gap-2 pointer-events-none">
@@ -948,12 +924,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        <div className="w-1 h-3 bg-red-500 rounded-full"></div>
                        <h3 className="font-semibold text-slate-800 text-xs md:text-sm">Tổng Chi</h3>
                     </div>
-                    <SmartInput
-                       value={totalExpenseInput}
-                       onCommit={handleTotalExpenseChange}
-                       className="w-full text-right h-8 rounded border border-red-200 bg-red-50/50 px-2 text-xs md:text-sm font-bold text-red-600 focus:border-red-400 focus:ring-1 focus:ring-red-100 outline-none transition-all"
-                       readOnly={isPaid}
-                    />
+                    {/* Read-Only Total Expense (Calculated Bottom-Up) */}
+                    <div className="w-full h-8 rounded border border-red-200 bg-red-50/50 px-2 flex items-center justify-end">
+                       <span className="text-xs md:text-sm font-bold text-red-600">{formatForDisplay(totalExpense)}</span>
+                    </div>
                  </div>
                  
                  <div className="space-y-1.5">
@@ -964,21 +938,17 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                        readOnly={isPaid}
                     />
                     
+                    {/* Fixed Expense is now EDITABLE */}
                     <div className={`${gridClass} group`}>
                       <div className="flex items-center gap-2">
                          <span className="text-xs md:text-sm text-slate-600 group-hover:text-slate-900 truncate">Chi cố định</span>
-                         <span className="text-[8px] md:text-[9px] text-slate-400 bg-slate-100 px-1 rounded">Auto</span>
                       </div>
-                      <div className="relative w-full">
-                         <input
-                           type="text"
-                           disabled
-                           className="w-full text-right h-8 rounded border border-slate-100 bg-slate-100 px-2 text-xs md:text-sm font-medium text-slate-500 cursor-not-allowed"
-                           value={formatForDisplay(breakdown.expenseFixed)}
-                           readOnly
-                         />
-                         <Lock size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
-                      </div>
+                      <SmartInput
+                        value={breakdown.expenseFixed}
+                        onCommit={(v) => handleExpenseComponentChange("expenseFixed", v)}
+                        className={`w-full text-right h-8 rounded border border-slate-200 px-2 text-xs md:text-sm font-medium text-slate-700 outline-none transition-all ${isPaid ? 'bg-slate-50 cursor-not-allowed' : 'bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-100'}`}
+                        readOnly={isPaid}
+                      />
                     </div>
 
                     <InputRow 
@@ -1274,6 +1244,20 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
         description={`Ngày ${date} đã có dữ liệu.`}
         confirmText="Đã hiểu"
         showCancel={false}
+        variant="default"
+      />
+
+      <AlertDialog 
+        isOpen={showEmptySaveAlert}
+        onClose={() => setShowEmptySaveAlert(false)}
+        onConfirm={() => {
+           setShowEmptySaveAlert(false);
+           proceedWithSave();
+        }}
+        title="Dữ liệu trống"
+        description="Bạn chưa nhập số tiền thu chi. Bạn có chắc chắn muốn lưu phiếu này không?"
+        cancelText="Hủy"
+        confirmText="Lưu"
         variant="default"
       />
     </>
