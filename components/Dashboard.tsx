@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
@@ -93,11 +92,10 @@ export const Dashboard: React.FC = () => {
     const loadMetadata = async () => {
       try {
         const loadedCycles = await db.getPaymentCycles();
-        setCycles(loadedCycles);
+        setCycles(loadedCycles || []);
       } catch (error) {
         console.error("Failed to load metadata", error);
-        // Silent fail or toast, prevents crash
-        toast.error("Không thể kết nối tới cơ sở dữ liệu.");
+        // Toast is suppressed to avoid spam on initial load, but logged
       }
     };
     loadMetadata();
@@ -133,6 +131,8 @@ export const Dashboard: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
+      // Fallback to empty array to prevent UI crash
+      setTransactions([]);
     } finally {
       setIsLoading(false);
     }
@@ -154,6 +154,7 @@ export const Dashboard: React.FC = () => {
           setOpenBalance(total);
         } catch (e) {
           console.error("Failed to calc open balance", e);
+          setOpenBalance(0);
         }
      };
      calcOpenBalance();

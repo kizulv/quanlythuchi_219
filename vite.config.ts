@@ -126,7 +126,8 @@ function createApiMiddleware() {
       // --- GENERIC API HANDLER ---
       // Endpoint mapping: /api/collectionName
       if (url.startsWith("/api/")) {
-        const collection = url.split("/")[2]?.split("?")[0]; // e.g. "transactions"
+        // Handle query params by removing them
+        const collection = url.split("/")[2]?.split("?")[0]; 
         const filename = `${collection}.json`;
         
         // 1. GET ALL
