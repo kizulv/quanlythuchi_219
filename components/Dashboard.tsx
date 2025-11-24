@@ -426,26 +426,6 @@ export const Dashboard: React.FC = () => {
      setSelectedCycleId(cycleId);
   };
 
-  // Reusable Component for Dark Summary Cards
-  const DarkStatsCard = ({ title, value, icon: Icon, colorClass, iconBgClass }: any) => (
-    <div className={`relative overflow-hidden rounded-2xl p-6 transition-transform hover:scale-[1.01] duration-300 ${colorClass} text-white shadow-lg`}>
-        <div className="absolute right-[-20px] top-[-20px] opacity-[0.05] pointer-events-none rotate-12">
-            <Icon size={120} />
-        </div>
-        <div className="relative z-10 flex flex-col justify-between h-full">
-            <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium text-white/80">{title}</span>
-                <div className={`p-2.5 rounded-xl border border-white/10 ${iconBgClass}`}>
-                    <Icon size={20} className="text-white" />
-                </div>
-            </div>
-            <div>
-                <div className="text-2xl md:text-3xl font-bold tracking-tight">{formatCurrency(value)}</div>
-            </div>
-        </div>
-    </div>
-  );
-
   return (
     // Changed min-h-screen to h-[100dvh] and added overflow-hidden to parent
     <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 flex overflow-hidden">
@@ -858,46 +838,47 @@ export const Dashboard: React.FC = () => {
             <div className="mt-8">
               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Database size={20} className="text-slate-500"/>
-                Thống kê tổng hợp (Toàn bộ dữ liệu)
+                Thống kê tổng hợp
               </h3>
               
+              {/* UPDATED GRID LAYOUT AND COLORS */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Card 1: Toàn bộ - Tổng dư */}
+                  {/* Card 1: Toàn bộ - Tổng dư (Dark Green) */}
                   <DarkStatsCard 
                     title="Toàn bộ" 
                     value={globalStats.totalAll} 
                     icon={CheckCircle} 
-                    colorClass="bg-[#044736]" // Dark Green
+                    colorClass="bg-[#044736]" 
                     iconBgClass="bg-white/10"
                     iconColor="text-emerald-400"
                   />
 
-                  {/* Card 2: Toàn bộ - Cổ phần */}
+                  {/* Card 2: Toàn bộ - Cổ phần (Dark Navy) */}
                   <DarkStatsCard 
                     title="Tổng cổ phần" 
                     value={globalStats.shareAll} 
                     icon={PieChart} 
-                    colorClass="bg-[#131b2e]" // Dark Navy
+                    colorClass="bg-[#131b2e]" 
                     iconBgClass="bg-white/10"
                     iconColor="text-blue-400"
                   />
 
-                  {/* Card 3: Năm nay - Tổng dư */}
+                  {/* Card 3: Năm nay - Tổng dư (Dark Purple) */}
                   <DarkStatsCard 
                     title="Năm nay" 
                     value={globalStats.totalYear} 
                     icon={Calendar} 
-                    colorClass="bg-[#181830]" // Dark Purple
+                    colorClass="bg-[#2e1065]" 
                     iconBgClass="bg-white/10"
                     iconColor="text-purple-400"
                   />
 
-                  {/* Card 4: Năm nay - Cổ phần */}
+                  {/* Card 4: Năm nay - Cổ phần (Dark Gray/Black) */}
                   <DarkStatsCard 
                     title="Cổ phần năm nay" 
                     value={globalStats.shareYear} 
                     icon={TrendingUp} 
-                    colorClass="bg-[#12151e]" // Dark Gray/Black
+                    colorClass="bg-[#12151e]" 
                     iconBgClass="bg-white/10"
                     iconColor="text-slate-400"
                   />
@@ -945,26 +926,26 @@ export const Dashboard: React.FC = () => {
   );
 };
 
-// Internal Component for the new dark cards
+// COMPACT DARK STATS CARD (Horizontal Layout)
 const DarkStatsCard = ({ title, value, icon: Icon, colorClass, iconBgClass, iconColor }: any) => {
   const formattedValue = new Intl.NumberFormat('vi-VN').format(Math.round(value));
   
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-5 md:p-6 transition-transform hover:scale-[1.01] duration-300 ${colorClass} text-white shadow-lg border border-white/5`}>
-        {/* Background Icon Decoration */}
-        <div className="absolute right-[-20px] top-[-20px] opacity-[0.05] pointer-events-none rotate-12">
-            <Icon size={140} />
+    <div className={`relative overflow-hidden rounded-xl p-4 transition-transform hover:scale-[1.01] duration-300 ${colorClass} text-white shadow-lg border border-white/5`}>
+        {/* Background Icon Decoration - Smaller & Subtler */}
+        <div className="absolute right-[-10px] top-[-10px] opacity-[0.03] pointer-events-none rotate-12">
+            <Icon size={80} />
         </div>
         
-        <div className="relative z-10 flex flex-col justify-between h-full min-h-[100px]">
-            <div className="flex items-start justify-between mb-2">
-                <span className="text-sm font-medium text-white/80">{title}</span>
-                <div className={`p-2 rounded-xl border border-white/10 backdrop-blur-sm ${iconBgClass}`}>
-                    <Icon size={20} className={iconColor || 'text-white'} />
-                </div>
+        {/* Compact Flex Row Layout */}
+        <div className="relative z-10 flex items-center justify-between">
+            <div className="flex flex-col">
+                <span className="text-xs font-medium text-white/70 uppercase tracking-wider mb-1">{title}</span>
+                <div className="text-xl md:text-2xl font-bold tracking-tight">{formattedValue}</div>
             </div>
-            <div>
-                <div className="text-2xl md:text-3xl font-bold tracking-tight">{formattedValue}</div>
+            
+            <div className={`p-2.5 rounded-lg border border-white/10 backdrop-blur-sm ${iconBgClass} shrink-0 ml-3`}>
+                <Icon size={20} className={iconColor || 'text-white'} />
             </div>
         </div>
     </div>
