@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 db/*
-public/images/reports
+public/images/reports/*
 
 # Editor directories and files
 .vscode/*
