@@ -17,13 +17,10 @@ app.use(express.json({ limit: "50mb" }));
 // Save image middleware
 app.post("/save-image", async (req, res) => {
   try {
-    const publicReportsDir = path.resolve(
-      __dirname,
-      "../public/images/reports"
-    );
+    const distReportsDir = path.resolve(__dirname, "../dist/images/reports");
 
     // Ensure directory exists
-    await fs.mkdir(publicReportsDir, { recursive: true });
+    await fs.mkdir(distReportsDir, { recursive: true });
 
     const { dataUrl, baseFileName: providedFileName } = req.body;
 
@@ -37,7 +34,7 @@ app.post("/save-image", async (req, res) => {
       baseFileName = `${now.toISOString().slice(0, 10)}.jpg`;
     }
 
-    const destPath = path.join(publicReportsDir, baseFileName);
+    const destPath = path.join(distReportsDir, baseFileName);
 
     // Handle existing files
     try {
@@ -48,7 +45,7 @@ app.post("/save-image", async (req, res) => {
       ).padStart(2, "0")}.jpg`;
       while (true) {
         try {
-          await fs.access(path.join(publicReportsDir, oldRename));
+          await fs.access(path.join(distReportsDir, oldRename));
           counter++;
           oldRename = `${baseFileName.replace(/\.jpg$/i, "")}-${String(
             counter
@@ -57,7 +54,7 @@ app.post("/save-image", async (req, res) => {
           break;
         }
       }
-      await fs.rename(destPath, path.join(publicReportsDir, oldRename));
+      await fs.rename(destPath, path.join(distReportsDir, oldRename));
     } catch (e) {
       // File doesn't exist yet
     }
