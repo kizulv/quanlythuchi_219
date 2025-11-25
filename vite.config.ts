@@ -119,9 +119,29 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       copyPublicDir: false,
+      rollupOptions: {
+        output: {
+          assetFileNames: (assetInfo) => {
+            return assetInfo.name;
+          },
+        },
+      },
     },
     plugins: [
       react(),
+      {
+        name: "vite:copy-images",
+        async writeBundle() {
+          const src = path.resolve(__dirname, "public/images");
+          const dest = path.resolve(__dirname, "dist/images");
+          try {
+            await fs.cp(src, dest, { recursive: true });
+            console.log("Images copied to dist/");
+          } catch (err) {
+            // Directory doesn't exist, skip
+          }
+        },
+      },
       {
         name: "vite:db-middleware",
         configureServer(server) {
