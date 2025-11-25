@@ -682,7 +682,7 @@ export const Dashboard: React.FC = () => {
                 </button>
                 <div className="flex flex-col">
                   <h1 className="text-xl md:text-2xl font-bold text-slate-900">
-                    Quản lý thu chi xe khách
+                    25F-002.19
                   </h1>
                   <div className="text-sm text-slate-500 font-normal flex flex-wrap items-center gap-2">
                     {getCurrentViewLabel()}
@@ -979,6 +979,7 @@ export const Dashboard: React.FC = () => {
                         >
                           <td className="px-2 py-3 align-middle text-center">
                             <input
+                              title="Đi 2 xe"
                               type="checkbox"
                               checked={t.isShared}
                               disabled
@@ -1042,9 +1043,9 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="mt-8">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-600 mb-4 flex items-center gap-2 uppercase">
                 <Database size={20} className="text-slate-500" />
-                Thống kê tổng hợp
+                Thống kê
               </h3>
 
               {/* UPDATED GRID LAYOUT AND COLORS */}
@@ -1061,7 +1062,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Card 2: Toàn bộ - Cổ phần (Dark Navy) */}
                 <DarkStatsCard
-                  title="Tổng cổ phần"
+                  title="Cổ phần"
                   value={globalStats.shareAll}
                   icon={PieChart}
                   colorClass="bg-[#131b2e]"
@@ -1081,7 +1082,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Card 4: Năm nay - Cổ phần (Dark Gray/Black) */}
                 <DarkStatsCard
-                  title="Cổ phần năm nay"
+                  title="Năm nay"
                   value={globalStats.shareYear}
                   icon={TrendingUp}
                   colorClass="bg-[#12151e]"
