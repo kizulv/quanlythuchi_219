@@ -33,6 +33,10 @@ async function writeDb(collection, data) {
 
 export function jsonDbMiddleware() {
   return async (req, res, next) => {
+    if (req.url.startsWith('/save-image')) {
+      return next();
+    }
+
     if (!req.url.startsWith('/api/')) {
       return next();
     }

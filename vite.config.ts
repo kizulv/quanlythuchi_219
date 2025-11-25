@@ -117,6 +117,9 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0",
       allowedHosts: ["xe.pcthanh.com"],
     },
+    build: {
+      copyPublicDir: false,
+    },
     plugins: [
       react(),
       {
