@@ -443,7 +443,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const getCycleAmountDisplay = (c: PaymentCycle) => {
-    return `${formatCurrency(c.totalAmount)} k`;
+    return `${formatCurrency(c.totalAmount / 2)} k`;
   };
 
   const getSelectedTransactionPaymentDate = () => {
@@ -776,7 +776,7 @@ export const Dashboard: React.FC = () => {
                     <ChevronLeft size={20} />
                   </button>
 
-                  <div className="relative flex-1 md:min-w-[240px]">
+                  <div className="relative flex-1 md:min-w-[220px]">
                     <button
                       onClick={() => setIsCyclePickerOpen(!isCyclePickerOpen)}
                       className="h-11 w-full px-5 bg-white border border-slate-200 rounded-full text-sm font-medium flex items-center justify-between gap-3 text-slate-600 shadow-sm hover:shadow-md hover:border-slate-300 hover:text-slate-900 transition-all"
@@ -892,7 +892,7 @@ export const Dashboard: React.FC = () => {
                   size="md"
                   icon={<Download size={16} />}
                   onClick={handleExportExcel}
-                  className="rounded-full border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all w-full justify-center md:w-auto h-11 px-6 text-sm"
+                  className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 text-sm rounded-full border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all w-full justify-center md:w-auto h-11 px-6 text-sm whitespace-nowrap"
                 >
                   Xuất Excel
                 </Button>
@@ -908,7 +908,7 @@ export const Dashboard: React.FC = () => {
                       ? "Chỉ thêm được vào kỳ hiện tại"
                       : "Thêm mới"
                   }
-                  className="rounded-full bg-slate-900 hover:bg-slate-800 shadow-md text-white border-none transition-all w-full justify-center md:w-auto h-11 px-6 text-sm"
+                  className="inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 text-sm rounded-full bg-slate-900 hover:bg-slate-800 shadow-md text-white border-none transition-all w-full justify-center md:w-auto h-11 px-6 text-sm whitespace-nowrap"
                 >
                   Thêm sổ
                 </Button>
