@@ -929,17 +929,17 @@ export const Dashboard: React.FC = () => {
                         Ngày
                       </th>
                       {/* REMOVED: Tổng thu & Chi chung */}
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px] hidden md:table-cell">
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[110px] hidden md:table-cell">
                         Dư chia
                       </th>
-                      <th className="h-12 px-2 align-middle text-right w-[120px] hidden md:table-cell">
+                      <th className="h-12 px-2 align-middle text-right w-[100px] hidden md:table-cell">
                         Chi riêng
                       </th>
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[80px] md:w-[120px]">
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[80px] md:w-[100px]">
                         Dư còn lại
                       </th>
                       <th className="h-12 px-2 align-middle text-center w-[100px] table-cell"></th>
-                      <th className="h-12 px-2 md:px-4 align-middle md:w-[400px]">
+                      <th className="h-12 px-2 md:px-4 align-middle md:w-[390px]">
                         Ghi chú
                       </th>
                       <th className="h-12 px-2 align-middle text-center w-[100px] md:w-[140px]">
