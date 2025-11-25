@@ -11,7 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
-db
+db/*
 public/images/reports
 
 # Editor directories and files
