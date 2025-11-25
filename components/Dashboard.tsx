@@ -918,7 +918,7 @@ export const Dashboard: React.FC = () => {
             {/* Table Container - Removed Revenue and SharedExpense Columns */}
             <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
               <div className="overflow-x-auto flex-1 w-full custom-scrollbar">
-                <table className="w-full text-sm text-left whitespace-nowrap table-fixed md:min-w-[1000px]">
+                <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[550px] md:min-w-[1000px]">
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
                     <tr>
                       <th className="h-12 px-2 align-middle w-[40px] md:w-[60px] text-center">
@@ -941,10 +941,10 @@ export const Dashboard: React.FC = () => {
                         Dư còn lại
                       </th>
                       <th className="h-12 px-2 align-middle text-center w-[80px] hidden md:table-cell"></th>
-                      <th className="h-12 px-2 md:px-4 align-middle max-w-[120px] md:max-w-none">
+                      <th className="h-12 px-2 md:px-4 align-middle max-w-[200px] md:max-w-none">
                         Ghi chú
                       </th>
-                      <th className="h-12 px-2 align-middle text-right w-[30px] md:w-[140px]">
+                      <th className="h-12 px-2 align-middle text-right w-[100px] md:w-[140px]">
                         Trạng thái
                       </th>
                     </tr>
@@ -1013,7 +1013,7 @@ export const Dashboard: React.FC = () => {
                             </button>
                           </td>
                           <td
-                            className="px-2 md:px-4 py-3 align-middle text-slate-600 truncate max-w-[120px] md:max-w-[200px]"
+                            className="px-2 md:px-4 py-3 align-middle text-slate-600 truncate max-w-[200px] md:max-w-[200px]"
                             title={t.note}
                           >
                             {t.note}
