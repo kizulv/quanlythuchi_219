@@ -460,7 +460,8 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleReconClick = () => {
-    if (window.innerWidth >= 768) {
+    // UPDATED: Show sidebar only on XL screens (1280px+)
+    if (window.innerWidth >= 1536) {
       // Desktop: Toggle sidebar instead of modal
       setIsRightSidebarOpen(!isRightSidebarOpen);
     } else {
@@ -542,15 +543,15 @@ export const Dashboard: React.FC = () => {
 
           <div
             onClick={handleReconClick}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent md:border-slate-200 ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent 2xl:border-slate-200 ${
               isRightSidebarOpen
-                ? "md:bg-slate-50 md:text-slate-900 md:font-bold"
-                : "md:font-medium"
+                ? "2xl:bg-slate-50 2xl:text-slate-900 2xl:font-bold"
+                : "xl:font-medium"
             }`}
           >
             <Wallet
               size={20}
-              className={isRightSidebarOpen ? "md:text-slate-900" : ""}
+              className={isRightSidebarOpen ? "2xl:text-slate-900" : ""}
             />
             <span className="font-medium text-sm">Đối soát</span>
           </div>
@@ -625,9 +626,9 @@ export const Dashboard: React.FC = () => {
         </div>
       </aside>
 
-      {/* RIGHT SIDEBAR (Desktop Only - Toggleable) */}
+      {/* RIGHT SIDEBAR (Desktop Only - Toggleable - XL Screens only) */}
       <aside
-        className={`fixed right-0 top-0 h-full w-[400px] bg-white z-30 hidden md:block transition-transform duration-300 ${
+        className={`fixed right-0 top-0 h-full w-[400px] bg-white z-30 hidden 2xl:block transition-transform duration-300 ${
           isRightSidebarOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -646,7 +647,7 @@ export const Dashboard: React.FC = () => {
       {/* Added custom-scrollbar here to ensure internal scrolling */}
       <main
         className={`flex-1 w-full h-full overflow-y-auto transition-all duration-300 md:ml-64 ${
-          isRightSidebarOpen ? "md:mr-[400px]" : "md:mr-0"
+          isRightSidebarOpen ? "2xl:mr-[400px]" : "2xl:mr-0"
         } custom-scrollbar relative`}
       >
         {/* VIEW SWITCHING */}
@@ -696,10 +697,10 @@ export const Dashboard: React.FC = () => {
               <div className="flex w-full md:w-auto gap-3 items-center md:self-auto">
                 {(!selectedCycleId || isLatestCycle) && (
                   <>
-                    {/* Added: Desktop Right Sidebar Toggle Button next to Create Payment */}
+                    {/* Added: Desktop Right Sidebar Toggle Button next to Create Payment (XL only) */}
                     <button
                       onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                      className="hidden md:flex items-center justify-center p-2.5 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                      className="hidden 2xl:flex items-center justify-center p-2.5 text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
                       title={
                         isRightSidebarOpen ? "Ẩn đối soát" : "Hiện đối soát"
                       }
@@ -929,9 +930,6 @@ export const Dashboard: React.FC = () => {
                       </th>
                       {/* REMOVED: Tổng thu & Chi chung */}
                       <th className="h-12 px-2 align-middle text-right font-bold w-[120px] hidden md:table-cell">
-                        Tổng dư
-                      </th>
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px] hidden md:table-cell">
                         Dư chia
                       </th>
                       <th className="h-12 px-2 align-middle text-right w-[120px] hidden md:table-cell">
@@ -997,8 +995,8 @@ export const Dashboard: React.FC = () => {
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
                                   strokeWidth={2.5}
-                                  title="Đã có ảnh"
                                 >
+                                  <title>Đã có ảnh</title>
                                   <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
@@ -1013,15 +1011,13 @@ export const Dashboard: React.FC = () => {
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
                                   strokeWidth={2}
-                                  title="Chưa có ảnh"
-                                ></svg>
+                                >
+                                  <title>Chưa có ảnh</title>
+                                </svg>
                               )}
                             </div>
                           </td>
                           {/* REMOVED: t.revenue & t.sharedExpense */}
-                          <td className="px-2 py-3 align-middle text-right font-bold text-slate-900 hidden md:table-cell">
-                            {formatCurrency(t.totalBalance)}
-                          </td>
                           <td className="px-2 py-3 align-middle text-right font-bold text-slate-900 hidden md:table-cell">
                             {formatCurrency(t.splitBalance)}
                           </td>
