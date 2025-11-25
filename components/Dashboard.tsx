@@ -1051,7 +1051,7 @@ export const Dashboard: React.FC = () => {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Card 1: Toàn bộ - Tổng dư (Dark Green) */}
                 <DarkStatsCard
-                  title="Toàn bộ"
+                  title="Tổng xe dư"
                   value={globalStats.totalAll}
                   icon={CheckCircle}
                   colorClass="bg-[#044736]"
@@ -1071,7 +1071,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Card 3: Năm nay - Tổng dư (Dark Purple) */}
                 <DarkStatsCard
-                  title="Năm nay"
+                  title="Dư năm nay"
                   value={globalStats.totalYear}
                   icon={Calendar}
                   colorClass="bg-[#2e1065]"
