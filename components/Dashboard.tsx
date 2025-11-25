@@ -722,7 +722,7 @@ export const Dashboard: React.FC = () => {
                         )
                       }
                       onClick={handleOpenPaymentModal}
-                      className="rounded-full bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-200 text-white border-none text-sm flex-1 md:flex-none justify-center px-6"
+                      className="rounded-full bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-200 text-white border-none text-sm flex-1 md:flex-none justify-center px-6 whitespace-nowrap"
                     >
                       {isLatestCycle ? "Sửa thanh toán" : "Tạo thanh toán"}
                     </Button>
@@ -924,7 +924,7 @@ export const Dashboard: React.FC = () => {
                       <th className="h-12 px-2 align-middle w-[40px] md:w-[60px] text-center">
                         2 Xe
                       </th>
-                      <th className="h-12 px-2 align-middle w-[100px] text-center">
+                      <th className="h-12 px-2 align-middle w-[110px] text-center">
                         Ngày
                       </th>
                       {/* REMOVED: Tổng thu & Chi chung */}
@@ -987,7 +987,15 @@ export const Dashboard: React.FC = () => {
                             />
                           </td>
                           <td className="px-2 py-3 align-middle font-medium text-center text-slate-900 truncate">
-                            {t.date}
+                            <div className="flex items-center justify-center gap-1.5">
+                              {t.date}
+                              <div
+                                className={`w-[8px] h-[8px] rounded-full ${
+                                  t.imageUrl ? "bg-slate-500" : "bg-white-500"
+                                }`}
+                                title={t.imageUrl ? "Đã có ảnh" : "Chưa có ảnh"}
+                              />
+                            </div>
                           </td>
                           {/* REMOVED: t.revenue & t.sharedExpense */}
                           <td className="px-2 py-3 align-middle text-right font-bold text-slate-900 hidden md:table-cell">
