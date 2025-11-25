@@ -918,13 +918,13 @@ export const Dashboard: React.FC = () => {
             {/* Table Container - Removed Revenue and SharedExpense Columns */}
             <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
               <div className="overflow-x-auto flex-1 w-full custom-scrollbar">
-                <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[550px] md:min-w-[1000px]">
+                <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[750px] md:min-w-[1000px]">
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
                     <tr>
                       <th className="h-12 px-2 align-middle w-[40px] md:w-[60px] text-center">
                         2 Xe
                       </th>
-                      <th className="h-12 px-2 align-middle w-[60px] md:w-[100px] text-center">
+                      <th className="h-12 px-2 align-middle w-[100px] text-center">
                         Ngày
                       </th>
                       {/* REMOVED: Tổng thu & Chi chung */}
@@ -940,11 +940,11 @@ export const Dashboard: React.FC = () => {
                       <th className="h-12 px-2 align-middle text-right font-bold w-[80px] md:w-[120px]">
                         Dư còn lại
                       </th>
-                      <th className="h-12 px-2 align-middle text-center w-[80px] hidden md:table-cell"></th>
-                      <th className="h-12 px-2 md:px-4 align-middle max-w-[200px] md:max-w-none">
+                      <th className="h-12 px-2 align-middle text-center w-[100px] table-cell"></th>
+                      <th className="h-12 px-2 md:px-4 align-middle md:w-[400px]">
                         Ghi chú
                       </th>
-                      <th className="h-12 px-2 align-middle text-right w-[100px] md:w-[140px]">
+                      <th className="h-12 px-2 align-middle text-center w-[100px] md:w-[140px]">
                         Trạng thái
                       </th>
                     </tr>
@@ -1001,7 +1001,7 @@ export const Dashboard: React.FC = () => {
                           <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">
                             {formatCurrency(t.remainingBalance)}
                           </td>
-                          <td className="px-2 py-3 align-middle text-center hidden md:table-cell">
+                          <td className="px-2 py-3 align-middle text-center table-cell">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1013,12 +1013,12 @@ export const Dashboard: React.FC = () => {
                             </button>
                           </td>
                           <td
-                            className="px-2 md:px-4 py-3 align-middle text-slate-600 truncate max-w-[200px] md:max-w-[200px]"
+                            className="px-2 md:px-4 py-3 align-middle text-slate-600 truncate"
                             title={t.note}
                           >
                             {t.note}
                           </td>
-                          <td className="px-2 py-3 align-middle text-right">
+                          <td className="px-2 py-3 align-middle text-center">
                             <Badge status={t.status} />
                           </td>
                         </tr>
