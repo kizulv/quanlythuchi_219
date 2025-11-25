@@ -3,12 +3,29 @@
     "id": "recon_11_2025",
     "month": 11,
     "year": 2025,
-    "cashStorage": 0,
-    "cashWallet": 0,
-    "bankAccount": 0,
-    "existingMoney": 0,
-    "paidItems": [],
-    "debtItems": [],
-    "lastUpdated": "2025-11-24T07:43:59.554Z"
+    "cashStorage": 11000,
+    "cashWallet": 1500,
+    "bankAccount": 36000,
+    "existingMoney": -5220,
+    "paidItems": [
+      {
+        "id": "1764000278961",
+        "description": "Anh Dũng vay",
+        "amount": 3000
+      },
+      {
+        "id": "1764000288011",
+        "description": "Anh Xuân nợ 15tr",
+        "amount": 0
+      }
+    ],
+    "debtItems": [
+      {
+        "id": "1764000299672",
+        "description": "Xe nâng bến",
+        "amount": 9630
+      }
+    ],
+    "lastUpdated": "2025-11-24T16:05:44.399Z"
   }
 ]

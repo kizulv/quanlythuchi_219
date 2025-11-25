@@ -443,7 +443,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const getCycleAmountDisplay = (c: PaymentCycle) => {
-    return `${formatCurrency(c.totalAmount * 2)} k`;
+    return `${formatCurrency(c.totalAmount)} k`;
   };
 
   const getSelectedTransactionPaymentDate = () => {
@@ -918,31 +918,33 @@ export const Dashboard: React.FC = () => {
             {/* Table Container - Removed Revenue and SharedExpense Columns */}
             <div className="rounded-lg border bg-white overflow-hidden shadow-sm flex flex-col min-h-[400px]">
               <div className="overflow-x-auto flex-1 w-full custom-scrollbar">
-                <table className="w-full text-sm text-left whitespace-nowrap table-fixed min-w-[1000px]">
+                <table className="w-full text-sm text-left whitespace-nowrap table-fixed md:min-w-[1000px]">
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b">
                     <tr>
-                      <th className="h-12 px-2 align-middle w-[60px] text-center">
+                      <th className="h-12 px-2 align-middle w-[40px] md:w-[60px] text-center">
                         2 Xe
                       </th>
-                      <th className="h-12 px-2 align-middle w-[100px] text-center">
+                      <th className="h-12 px-2 align-middle w-[60px] md:w-[100px] text-center">
                         Ngày
                       </th>
                       {/* REMOVED: Tổng thu & Chi chung */}
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px]">
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px] hidden md:table-cell">
                         Tổng dư
                       </th>
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px]">
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px] hidden md:table-cell">
                         Dư chia
                       </th>
-                      <th className="h-12 px-2 align-middle text-right w-[120px]">
+                      <th className="h-12 px-2 align-middle text-right w-[120px] hidden md:table-cell">
                         Chi riêng
                       </th>
-                      <th className="h-12 px-2 align-middle text-right font-bold w-[120px]">
+                      <th className="h-12 px-2 align-middle text-right font-bold w-[80px] md:w-[120px]">
                         Dư còn lại
                       </th>
-                      <th className="h-12 px-2 align-middle text-center w-[80px]"></th>
-                      <th className="h-12 px-4 align-middle">Ghi chú</th>
-                      <th className="h-12 px-2 align-middle text-right w-[140px]">
+                      <th className="h-12 px-2 align-middle text-center w-[80px] hidden md:table-cell"></th>
+                      <th className="h-12 px-2 md:px-4 align-middle max-w-[120px] md:max-w-none">
+                        Ghi chú
+                      </th>
+                      <th className="h-12 px-2 align-middle text-right w-[30px] md:w-[140px]">
                         Trạng thái
                       </th>
                     </tr>
@@ -972,42 +974,46 @@ export const Dashboard: React.FC = () => {
                       transactions.map((t) => (
                         <tr
                           key={t.id}
-                          className="hover:bg-slate-50/60 transition-colors group"
+                          onClick={() => handleOpenDetail(t)}
+                          className="hover:bg-slate-50/60 transition-colors group cursor-pointer"
                         >
                           <td className="px-2 py-3 align-middle text-center">
                             <input
                               type="checkbox"
                               checked={t.isShared}
                               disabled
-                              className="w-4 h-4 rounded border-gray-300 text-slate-900 accent-slate-900 cursor-not-allowed disabled:opacity-100"
+                              className="w-3 h-3 md:w-4 md:h-4 rounded border-gray-300 text-slate-900 accent-slate-900 cursor-not-allowed disabled:opacity-100"
                             />
                           </td>
-                          <td className="px-2 py-3 align-middle font-medium text-center text-slate-900">
+                          <td className="px-2 py-3 align-middle font-medium text-center text-slate-900 truncate">
                             {t.date}
                           </td>
                           {/* REMOVED: t.revenue & t.sharedExpense */}
-                          <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">
+                          <td className="px-2 py-3 align-middle text-right font-bold text-slate-900 hidden md:table-cell">
                             {formatCurrency(t.totalBalance)}
                           </td>
-                          <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">
+                          <td className="px-2 py-3 align-middle text-right font-bold text-slate-900 hidden md:table-cell">
                             {formatCurrency(t.splitBalance)}
                           </td>
-                          <td className="px-2 py-3 align-middle text-right text-slate-600">
+                          <td className="px-2 py-3 align-middle text-right text-slate-600 hidden md:table-cell">
                             {formatCurrency(t.privateExpense)}
                           </td>
                           <td className="px-2 py-3 align-middle text-right font-bold text-slate-900">
                             {formatCurrency(t.remainingBalance)}
                           </td>
-                          <td className="px-2 py-3 align-middle text-center">
+                          <td className="px-2 py-3 align-middle text-center hidden md:table-cell">
                             <button
-                              onClick={() => handleOpenDetail(t)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDetail(t);
+                              }}
                               className="text-sm font-semibold text-slate-900 hover:text-blue-600"
                             >
                               Chi tiết
                             </button>
                           </td>
                           <td
-                            className="px-4 py-3 align-middle text-slate-600 truncate max-w-[200px]"
+                            className="px-2 md:px-4 py-3 align-middle text-slate-600 truncate max-w-[120px] md:max-w-[200px]"
                             title={t.note}
                           >
                             {t.note}

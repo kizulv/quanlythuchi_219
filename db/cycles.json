@@ -617,5 +617,27 @@
     ],
     "totalAmount": 39775,
     "note": "Thanh toán kỳ 07/2023"
+  },
+  {
+    "id": "2025.10",
+    "createdDate": "31/10/2025",
+    "transactionIds": [
+      "trans_oldData_404",
+      "trans_oldData_405",
+      "trans_oldData_406",
+      "trans_oldData_407",
+      "trans_oldData_408",
+      "trans_oldData_409",
+      "trans_oldData_410",
+      "trans_oldData_411",
+      "trans_oldData_412",
+      "trans_oldData_413",
+      "trans_oldData_414",
+      "trans_oldData_415",
+      "trans_oldData_416",
+      "trans_oldData_417"
+    ],
+    "totalAmount": 33337.5,
+    "note": "Thanh toán kỳ 10/2025"
   }
 ]
